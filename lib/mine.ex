@@ -1,17 +1,20 @@
 defmodule Mine do
+  @type key :: atom | String.t()
+  defguardp is_valid_key?(val) when is_atom(val) or is_binary(val)
+
   defmacro __using__(_) do
     quote do
       import Mine
 
-      @mine false
-      @mine_builds %{}
+      @mine true
       @mine_default_view :default
+      @mine_views %{}
+      @mine_aliases %{}
+      @mine_additional_fields %{}
+      @mine_ignored %{}
 
       Module.register_attribute(__MODULE__, :mine_name, accumulate: false)
       Module.register_attribute(__MODULE__, :mine_names, accumulate: true)
-      Module.register_attribute(__MODULE__, :mine_aliases, accumulate: true)
-      Module.register_attribute(__MODULE__, :mine_additional_fields, accumulate: true)
-      Module.register_attribute(__MODULE__, :mine_ignored, accumulate: true)
 
       @after_compile Mine
 
@@ -42,7 +45,7 @@ defmodule Mine do
   defmacro defview(name \\ :default, do: body) do
     prelude =
       quote do
-        if not valid_key?(unquote(name)) do
+        unless valid_key?(unquote(name)) do
           raise Mine.View.CompileError,
             module: __MODULE__,
             view: unquote(name),
@@ -72,22 +75,22 @@ defmodule Mine do
         view = Mine.__build_view__(__MODULE__, name)
         Mine.__save_view__(__MODULE__, name, view)
 
-        aliases = @mine_aliases |> Enum.reverse()
-        ignored = @mine_ignored |> Enum.reverse()
-        additional = @mine_additional_fields |> Enum.reverse()
-        builds = @mine_builds
+        aliases = @mine_aliases
+        ignored = @mine_ignored
+        additional = @mine_additional_fields
+        views = @mine_views
         default = @mine_default_view
         names = @mine_names |> Enum.reverse()
 
         def __mine__(:aliases), do: unquote(Macro.escape(aliases))
-        def __mine__(:ignored), do: unquote(ignored)
-        def __mine__(:additional), do: unquote(additional)
-        def __mine__(:views), do: unquote(Macro.escape(builds))
+        def __mine__(:ignored), do: unquote(Macro.escape(ignored))
+        def __mine__(:additional), do: unquote(Macro.escape(additional))
+        def __mine__(:views), do: unquote(Macro.escape(views))
         def __mine__(:default_view), do: unquote(default)
         def __mine__(:names), do: unquote(names)
 
-        for {v, build} <- builds do
-          def __mine__({:view, unquote(v)}), do: unquote(Macro.escape(build))
+        for {name, view} <- views do
+          def __mine__({:view, unquote(name)}), do: unquote(Macro.escape(view))
         end
 
         def to_view(struct = %__MODULE__{}, unquote(name)) do
@@ -135,12 +138,17 @@ defmodule Mine do
     end
   end
 
+  @doc """
+  Constructs a valid view for `name` to be used during runtime. Accesses the
+  attributes `mod` for the bindings made within the `defview/2` macro.
+  """
+  @spec __build_view__(module, key) :: Mine.ViewDefinition.t()
   def __build_view__(mod, name) do
     %{
       mine_aliases: aliases,
-      mine_additional_fields: extras,
+      mine_additional_fields: additional,
       mine_ignored: ignored
-    } = Mine.__extract_name_info__(mod, name)
+    } = Mine.__get_name_values__(mod, name)
 
     struct_view =
       Module.get_attribute(mod, :struct)
@@ -148,8 +156,8 @@ defmodule Mine do
       |> Enum.map(fn {k, v} -> {k, Mine.Alias.new(Atom.to_string(k), v)} end)
       |> Enum.into(%{})
 
-    validate_keys!(mod, name, struct_view, aliases, :alias_field)
-    validate_keys!(mod, name, struct_view, ignored, :ignore)
+    Mine.__validate_keys__(mod, name, struct_view, aliases, :alias_field)
+    Mine.__validate_keys__(mod, name, struct_view, ignored, :ignore)
 
     for {k, _} <- ignored do
       if Map.has_key?(aliases, k) do
@@ -169,17 +177,56 @@ defmodule Mine do
       |> Map.merge(aliases, &Mine.Alias.merge/3)
       |> Map.drop(Map.keys(ignored))
 
-    Mine.View.new(aliases, extras)
+    Mine.ViewDefinition.new(aliases, additional)
   end
 
-  def __extract_name_info__(mod, name) do
-    ~w(mine_aliases mine_additional_fields mine_ignored)a
-    |> Enum.map(&{&1, Module.get_attribute(mod, &1)})
-    |> Enum.map(fn {attr, kw} -> {attr, Mine.get_name(kw, name)} end)
-    |> Enum.into(%{})
+  @doc """
+  Fetches the current values stored in the attributes for `mod` stored for `name`.
+
+  Expects that the content of each attribute is a map that contains the key `name`.
+  """
+  @spec __get_name_values__(module, key) :: %{atom => %{key => any}}
+  def __get_name_values__(mod, name) when is_valid_key?(name) do
+    for attr <- ~w(mine_aliases mine_additional_fields mine_ignored)a, into: %{} do
+      {attr, Module.get_attribute(mod, attr)[name]}
+    end
   end
 
-  def validate_keys!(mod, name, struct_map, declared, declared_in) do
+  @doc """
+  Saves the given `key`, `value` pair into the map of `attribute` on `mod`.
+
+  Assumes that `attribute` has is a map containing the key `name`.
+
+  Raises if `key` has already been used by the `caller`.
+  """
+  @spec __put_into_attribute__(module, atom, key, key, any) :: :ok
+  def __put_into_attribute__(mod, attribute, name, key, value) do
+    name_map = Module.get_attribute(mod, attribute)
+
+    unless is_nil(get_in(name_map, [name, key])) do
+      caller =
+        case attribute do
+          :mine_aliases -> :alias_field
+          :mine_additional_fields -> :add_field
+          :mine_ignored -> :ignore_field
+        end
+
+      raise Mine.View.CompileError,
+        module: mod,
+        view: name,
+        message: "#{key} has already been assigned using #{caller} in this view"
+    end
+
+    Module.put_attribute(mod, attribute, put_in(name_map, [name, key], value))
+  end
+
+  @doc """
+  Checks whether every key in the `declared` map is in `struct_map`.
+
+  Raises on undeclared key.
+  """
+  @spec __validate_keys__(module, key, %{atom => any}, %{key => any}, atom) :: :ok
+  def __validate_keys__(mod, name, struct_map, declared, declared_in) do
     Enum.each(declared, fn {key, _} ->
       unless Map.has_key?(struct_map, key) do
         valid_keys =
@@ -200,17 +247,16 @@ defmodule Mine do
           """
       end
     end)
+
+    :ok
   end
 
-  def has_struct?(module) when is_atom(module) do
-    Module.defines?(module, {:__struct__, 0}) && Module.defines?(module, {:__struct__, 1})
-  end
-
-  def get_name(list, name) when is_list(list) do
-    list
-    |> Enum.filter(fn {v, _} -> v == name end)
-    |> Enum.map(&elem(&1, 1))
-    |> Enum.into(%{})
+  @doc """
+  Checks if `mod` has declared the functions required to be a struct.
+  """
+  @spec has_struct?(module) :: boolean
+  def has_struct?(mod) when is_atom(mod) do
+    Module.defines?(mod, {:__struct__, 0}) && Module.defines?(mod, {:__struct__, 1})
   end
 
   # Macros
@@ -247,73 +293,106 @@ defmodule Mine do
 
   # Macro callbacks
 
-  def __alias_field__(mod, key, opts) do
+  @doc """
+  Adds an alias for `field` for the view that is currently in scope. `opts` are used
+  to construct an instance of `Mine.Alias`.
+  """
+  @spec __alias_field__(module, key, keyword) :: :ok
+  def __alias_field__(mod, field, opts) do
     name = __active_name__(mod, :alias_field)
-    {as, opts} = Keyword.pop(opts, :as, Atom.to_string(key))
-    {default, _opts} = Keyword.pop(opts, :default)
+    as = Keyword.get(opts, :as, Atom.to_string(field))
+    default = Keyword.get(opts, :default)
 
-    Module.get_attribute(mod, :mine_aliases)
-    |> Enum.each(fn
-      {^name, {^key, _}} ->
-        raise Mine.View.CompileError,
-          module: mod,
-          view: name,
-          message: "#{key} has already been aliased"
-
-      _ ->
-        false
-    end)
-
-    Module.put_attribute(mod, :mine_aliases, {name, {key, Mine.Alias.new(as, default)}})
+    Mine.__put_into_attribute__(mod, :mine_aliases, name, field, Mine.Alias.new(as, default))
   end
 
-  def __add_field__(mod, key, value) do
+  @doc """
+  Specifies that view in the surrounding scope will add the `key` => `value` to
+  the views it produces.
+  """
+  @spec __add_field__(module, key, any) :: :ok
+  def __add_field__(mod, field, value) do
     name = __active_name__(mod, :add_field)
-    Module.put_attribute(mod, :mine_additional_fields, {name, {key, value}})
+    Mine.__put_into_attribute__(mod, :mine_additional_fields, name, field, value)
   end
 
-  def __ignore_field__(mod, key) do
-    name = __active_name__(mod, :ignore)
-    Module.put_attribute(mod, :mine_ignored, {name, {key, []}})
+  @doc """
+  Specifies that the surrounding view will ignore `field` when mapping to and
+  from the struct for `mod`.
+  """
+  @spec __ignore_field__(module, key) :: :ok
+  def __ignore_field__(mod, field) do
+    name = __active_name__(mod, :ignore_field)
+    Mine.__put_into_attribute__(mod, :mine_ignored, name, field, [])
   end
 
+  @doc "Sets the `@mine_default_view` attribute for `mod`."
+  @spec __set_default_view__(module, key) :: :ok
   def __set_default_view__(mod, name) do
     Module.put_attribute(mod, :mine_default_view, name)
   end
 
+  @doc """
+  Inspects the attributes of `mod` for the name of the current view.
+
+  If a current name has not been set, the calling macro was not inside
+  a `defview` block and this will raise. Uses `caller` to provide a
+  descriptive error message.
+  """
+  @spec __active_name__(module, atom) :: atom
   def __active_name__(mod, caller) when is_atom(caller) do
     case Module.get_attribute(mod, :mine_name) do
       nil ->
+        # no active name implies macro was out of scope
         raise Mine.View.CompileError,
           module: mod,
           message: """
           #{caller} cannot be used outside defview/1.
           """
 
-      other ->
-        other
+      name ->
+        name
     end
   end
 
-  def __activate_name__(mod, v) do
-    Module.put_attribute(mod, :mine_name, v)
+  @doc """
+  Set the current view name of `mod` to `name`. This is should be inserted some
+  point before the body of `defview/2`.
+
+  Basically using this to start a scope.
+  """
+  @spec __activate_name__(module, key) :: :ok
+  def __activate_name__(mod, name) do
+    # prepare entries for this context
+    for attr <- ~w(mine_aliases mine_additional_fields mine_ignored)a do
+      name_values = Module.get_attribute(mod, attr)
+      Module.put_attribute(mod, attr, Map.put(name_values, name, %{}))
+    end
+
+    Module.put_attribute(mod, :mine_name, name)
   end
 
+  @doc "Exits the scope of `mod` by clearing `@mine_name`"
+  @spec __deactivate_name__(module) :: :ok
   def __deactivate_name__(mod) do
-    Module.put_attribute(mod, :mine_name, :default)
+    Module.delete_attribute(mod, :mine_name)
   end
 
-  def __save_view__(mod, name, build) do
-    prev = Module.get_attribute(mod, :mine_builds)
+  @doc "Saves a validated view to the attributes of `mod` with the name `name`"
+  @spec __save_view__(module, key, Mine.ViewDefinition.t()) :: :ok
+  def __save_view__(mod, name, view) do
+    prev = Module.get_attribute(mod, :mine_views)
     Module.put_attribute(mod, :mine_names, name)
-    Module.put_attribute(mod, :mine_builds, Map.put(prev, name, build))
+    Module.put_attribute(mod, :mine_views, Map.put(prev, name, view))
   end
 
+  @doc false
+  @spec __after_compile__(keyword, charlist) :: :ok
   def __after_compile__(%{module: mod}, _byte_code) do
     default = mod.__mine__(:default_view)
     names = mod.__mine__(:names)
 
-    if not (default in names) do
+    unless default in names do
       raise Mine.View.CompileError,
         module: mod,
         message: """
@@ -323,10 +402,13 @@ defmodule Mine do
 
         Alternatively, modules that only use defview/1 once may omit a view name.
         """
+    else
+      :ok
     end
   end
 
-  def valid_key?(val) when is_atom(val) or is_binary(val), do: true
+  @spec valid_key?(any) :: boolean
+  def valid_key?(val) when is_valid_key?(val), do: true
 
   def valid_key?(_), do: false
 end

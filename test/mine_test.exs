@@ -14,14 +14,30 @@ defmodule MineTest do
   end
 
   describe "negative tests" do
-    test "using macros outside defview/1" do
+    test "using macros before defview/1" do
       assert_compile_time_raise(
         ~r/(alias_field cannot be used)/i,
-        defmodule User1 do
+        defmodule User0 do
           use Mine
           defstruct [:name, :pass]
 
           alias_field(:name, "username")
+        end
+      )
+    end
+
+    test "using macros after defview/1" do
+      assert_compile_time_raise(
+        ~r/(ignore_field cannot be used)/i,
+        defmodule User0 do
+          use Mine
+          defstruct [:name, :pass]
+
+          defview :api do
+            alias_field(:name, "name")
+          end
+
+          ignore_field(:name)
         end
       )
     end
@@ -88,7 +104,7 @@ defmodule MineTest do
 
     test "aliasing name twice raises error" do
       assert_compile_time_raise(
-        ~r/(name has already been aliased)/,
+        ~r/(name has already been assigned)/,
         defmodule User6 do
           use Mine
           defstruct [:name]
@@ -116,7 +132,7 @@ defmodule MineTest do
       )
     end
 
-    test "key cannot be aliased and ignore_fieldd" do
+    test "key cannot be aliased and ignore_field" do
       assert_compile_time_raise(
         ~r/(alias_field).*(ignore_field)/,
         defmodule User8 do
