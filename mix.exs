@@ -28,7 +28,8 @@ defmodule Proto.MixProject do
   defp deps do
     [
       {:excoveralls, "~> 0.12.0", only: :test},
-      {:ex_doc, "~> 0.19", only: [:dev, :test]}
+      {:ex_doc, "~> 0.19", only: [:dev, :test]},
+      {:dialyxir, "~> 0.5", only: [:dev], runtime: false}
     ]
   end
 
@@ -36,6 +37,7 @@ defmodule Proto.MixProject do
     [
       name: :mine,
       licenses: ["MIT"],
+      maintainers: ["Spencer Gilson"],
       links: %{"GitHub" => "https://github.com/sgilson/mine"}
     ]
   end
@@ -53,7 +55,8 @@ defmodule Proto.MixProject do
     [
       source_ref: "v#{@version}",
       source_url: "https://github.com/sgilson/mine",
-      main: "Mine"
+      main: "Mine",
+      extras: ["README.md"]
     ]
   end
 

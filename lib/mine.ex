@@ -387,7 +387,7 @@ defmodule Mine do
   end
 
   @doc false
-  @spec __after_compile__(keyword, charlist) :: :ok
+  @spec __after_compile__(map, any) :: :ok
   def __after_compile__(%{module: mod}, _byte_code) do
     default = mod.__mine__(:default_view)
     names = mod.__mine__(:names)
