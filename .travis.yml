@@ -1,0 +1,18 @@
+language: elixir
+elixir:
+  - 1.9.1
+otp_release:
+  - 22.0
+
+env:
+  - MIX_ENV=test
+
+before_script: mix format --check-formatted --dry-run
+script:
+  - mix coveralls.travis
+
+cache:
+  packages: true
+  directories:
+    - deps
+    - _build
