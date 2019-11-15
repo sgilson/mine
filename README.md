@@ -1,8 +1,4 @@
-# mine
-
-[![Build Status](https://travis-ci.com/sgilson/mine.svg?branch=master)](https://travis-ci.com/sgilson/mine)
-[![Hex pm](https://img.shields.io/hexpm/v/mine)](https://hexdocs.pm/mine/Mine.html)
-[![Coverage Status](https://coveralls.io/repos/github/sgilson/mine/badge.svg?branch=master)](https://coveralls.io/github/sgilson/mine?branch=master)
+# Mine [![Hex Version](https://img.shields.io/hexpm/v/mine.svg)](https://hex.pm/packages/mine) [![docs](https://img.shields.io/badge/docs-hexpm-blue.svg)](https://hexdocs.pm/mine/) [![Build Status Travis](https://travis-ci.com/sgilson/mine.svg?branch=master)](https://travis-ci.com/sgilson/mine) [![Coverage Status](https://coveralls.io/repos/github/sgilson/mine/badge.svg?branch=master)](https://coveralls.io/github/sgilson/mine?branch=master)
 
 Mine is a lightweight package for defining views for structs. It
 aims to eliminate the boilerplate required to write and maintain an 

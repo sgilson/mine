@@ -4,14 +4,12 @@ defmodule Mine.ViewDefinition do
   view or vice versa.
   """
 
-  @typedoc "Key value pair used to expand a view"
-  @type additional_field :: {String.t(), any}
   @type alias_map :: %{Mine.key() => Mine.Alias.t()}
   @type additional_fields :: %{Mine.key() => any}
-  @type t :: %{__struct__: __MODULE__, aliases: alias_map, additional_fields: additional_fields}
+  @type t :: %__MODULE__{aliases: alias_map, additional_fields: additional_fields}
   defstruct [:aliases, :additional_fields]
 
   @spec new(alias_map, additional_fields) :: t
-  @doc "Creates a new `Mine.View` struct."
+  @doc "Creates a new `Mine.ViewDefinition` struct."
   def new(aliases, additional), do: %__MODULE__{aliases: aliases, additional_fields: additional}
 end

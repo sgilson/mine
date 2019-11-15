@@ -71,7 +71,7 @@ defmodule Mine do
       end
 
     postlude =
-      quote bind_quoted: [name: name], unquote: false do
+      quote bind_quoted: [name: name] do
         view = Mine.__build_view__(__MODULE__, name)
         Mine.__save_view__(__MODULE__, name, view)
 
@@ -94,7 +94,7 @@ defmodule Mine do
         end
 
         def to_view(struct = %__MODULE__{}, unquote(name)) do
-          view = __MODULE__.__mine__(:views)[unquote(name)]
+          view = unquote(Macro.escape(view))
 
           mapped =
             for {key, %{as: as, default: def}} <- view.aliases, into: %{} do
@@ -108,7 +108,7 @@ defmodule Mine do
         end
 
         def normalize(source, unquote(name)) when is_map(source) do
-          view = __MODULE__.__mine__(:views)[unquote(name)]
+          view = unquote(Macro.escape(view))
 
           for {key, %{as: as, default: def}} <- view.aliases, into: %{} do
             case Map.get(source, as) do
@@ -386,7 +386,11 @@ defmodule Mine do
     Module.put_attribute(mod, :mine_views, Map.put(prev, name, view))
   end
 
-  @doc false
+  @doc """
+  Verifies that the declared default key corresponds to an existing view.
+
+  Raises if this condition fails.
+  """
   @spec __after_compile__(map, any) :: :ok
   def __after_compile__(%{module: mod}, _byte_code) do
     default = mod.__mine__(:default_view)
