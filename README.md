@@ -181,7 +181,7 @@ to improve the library:
 - [ ] Optionally import functions via `use Mine, only: ...`
 - [ ] Additional options for when to use default values
 - [ ] `embedded_view key, module` macro: signals that the contents of the target 
-field is also using `Mine` and should be translated accordingly in `to_view` and
+field is also a struct using `Mine` and should be translated accordingly in `to_view` and
 `from_view`
 - [ ] Ecto integration: when a given module is using Ecto, `validate` will automatically 
 use the `changeset/1` function for validation
