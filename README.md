@@ -173,3 +173,17 @@ end
 ```
 
 ## Roadmap
+
+If this project gathers any interest, here are some steps I would like to take
+to improve the library:
+
+- [ ] Compare mapping strategies to determine the fastest approach
+- [ ] Optionally import functions via `use Mine, only: ...`
+- [ ] Additional options for when to use default values
+- [ ] `embedded_view key, module` macro: signals that the contents of the target 
+field is also using `Mine` and should be translated accordingly in `to_view` and
+`from_view`
+- [ ] Ecto integration: when a given module is using Ecto, `validate` will automatically 
+use the `changeset/1` function for validation
+- [ ] Phoenix integration via Plug: simple plug to map request/response bodies
+to their intended form after parsing
