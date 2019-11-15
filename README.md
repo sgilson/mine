@@ -10,6 +10,10 @@ aims to eliminate the boilerplate required to write and maintain an
 anti-corruption layer between your structs and any external APIs you
 interface with.
 
+**Note:** Mine currently exports the minimum functionality required for my own use case 
+but is not ready for adoption yet. Until v1.0.0, the interface may change in ways that break 
+backwards compatibility.
+
 ## Usage
 
 ### Basic Views
