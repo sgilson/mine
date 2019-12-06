@@ -1,7 +1,8 @@
-defmodule Proto.MixProject do
+defmodule Mine.MixProject do
   use Mix.Project
 
-  @version "0.1.0"
+  @version "0.2.0"
+  def get_version, do: @version
 
   def project do
     [
@@ -29,7 +30,8 @@ defmodule Proto.MixProject do
     [
       {:excoveralls, "~> 0.12.0", only: :test},
       {:ex_doc, "~> 0.19", only: [:dev, :test]},
-      {:dialyxir, "~> 0.5", only: [:dev], runtime: false}
+      {:dialyxir, "~> 0.5", only: [:dev], runtime: false},
+      {:benchee, "~> 1.0.1", only: :bench}
     ]
   end
 
@@ -53,13 +55,12 @@ defmodule Proto.MixProject do
 
   def docs do
     [
-      source_ref: "v#{@version}",
       source_url: "https://github.com/sgilson/mine",
       main: "Mine",
       extras: ["README.md"]
     ]
   end
 
-  defp elixirc_paths(:test), do: ["test/support", "lib"]
+  defp elixirc_paths(:test), do: ["test/benchmark", "lib"]
   defp elixirc_paths(_), do: ["lib"]
 end

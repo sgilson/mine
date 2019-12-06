@@ -1,7 +1,7 @@
 # Mine
 
 [![Hex Version](https://img.shields.io/hexpm/v/mine.svg)](https://hex.pm/packages/mine) 
-[![docs](https://img.shields.io/badge/docs-hexpm-blue.svg)](https://hexdocs.pm/mine/) 
+[![Documentation](https://img.shields.io/badge/docs-hexpm-blue.svg)](https://hexdocs.pm/mine/) 
 [![Build Status Travis](https://travis-ci.com/sgilson/mine.svg?branch=master)](https://travis-ci.com/sgilson/mine) 
 [![Coverage Status](https://coveralls.io/repos/github/sgilson/mine/badge.svg?branch=master)](https://coveralls.io/github/sgilson/mine?branch=master)
 
@@ -35,22 +35,13 @@ to be purely additive. It will not replace functionality provided by more mature
 modules but rather build on existing code. The most notable benefit to this approach
 is that other packages that internally define structs (like Ecto) can be extended.
 
-At compile time, `Mine` will create a 'view' for every module in use. Any
+At compile time, `Mine` will create views for every module in use. Any
 incompatibilities between the declared views and their base structs will be caught here,
 providing the benefit of runtime safety. To access the compiled view at runtime,
 the following methods will be found on your module.
 
 - `to_view/2`: Covert struct to a map for a given view
-- `normalize/1`: Convert map to a form suitable for use in functions like `Kernel.struct/2` and
-`new_instance/1`
-- `new_instance/1`: By default, only calls `Kernel.struct/2`. This is overridable in the 
-client module to include any additional logic. Used in the pipeline of `from_view`
-functions.
-- `validate/1`: Another extension point. This will be called on the struct created 
-by `new_instance/1` in the `from_view` pipeline. Allows for mature validation
-packages to work their magic on the output struct before introducing the data
-to your business logic.
-- `from_view/2` (and `from_view!/2`): Convert source map to struct. Convenience 
+- `from_view/2`: Convert source map to struct. Convenience 
 method for normalizing an input map, using it to create a struct, and validating the
 result. Relies on the above methods to accomplish this.
 
@@ -117,13 +108,13 @@ for a port in an unnamed API:
 ```
 
 Peculiar formats such as this were littered throughout the API, leading to several
-structs similar to the following:
+modules with structures similar to the following:
 
 ```elixir
 defmodule PortV1 do
   defstruct [:num, :enabled]
 
-  def to_view(%Port{num: num, enabled: enabled}) do
+  def to_view(%PortV1{num: num, enabled: enabled}) do
     %{
       "$" => num,
       "@enabled" => enabled
@@ -131,7 +122,7 @@ defmodule PortV1 do
   end
 
   def from_view(%{"$" => num, "@enabled" => enabled}) do
-    %Port{num: num, enabled: enabled}
+    %PortV1{num: num, enabled: enabled}
   end
 end
 ```
@@ -144,7 +135,7 @@ Code like this:
 
 Given these conditions, I opted to break my first rule of writing macros in Elixir
 (avoid it). Instead of the example seen above, using `mine` allows for a much more
-concise representation of the mapping to the external world.
+concise representation of a mapping to the external world.
 
 ```elixir
 defmodule PortV2 do
@@ -159,7 +150,8 @@ end
 ```
 
 This representation is easier to read, maintain, and is even checked for validity 
-at compile time.
+at compile time. In addition, the generated code is nearly identical to the 
+code written by hand, resulting in a minimal performance impact.
 
 ## Installation
 
@@ -173,13 +165,21 @@ def deps do
 end
 ```
 
+## Benchmarking
+
+To benchmark the generated functions against those written by hand, run the 
+following:
+
+```shell script
+MIX_ENV=bench mix run bench/run.exs
+```
+
 ## Roadmap
 
 If this project gathers any interest, here are some steps I would like to take
 to improve the library:
 
 - [ ] Compare mapping strategies to determine the fastest approach
-- [ ] Optionally import functions via `use Mine, only: ...`
 - [ ] Additional options for when to use default values
 - [ ] `embedded_view key, module` macro: signals that the contents of the target 
 field is also a struct using `Mine` and should be translated accordingly in `to_view` and
