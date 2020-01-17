@@ -164,7 +164,7 @@ Mine can be installed by adding `mine` to your list of dependencies in `mix.exs`
 ```elixir
 def deps do
   [
-    {:mine, "~> 0.1.0"}
+    {:mine, "~> 0.2.0"}
   ]
 end
 ```

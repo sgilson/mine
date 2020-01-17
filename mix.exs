@@ -18,7 +18,7 @@ defmodule Mine.MixProject do
       test_coverage: [
         tool: ExCoveralls
       ],
-      elixirc_paths: elixirc_paths(Mix.env())
+      elixirc_paths: ["lib"]
     ]
   end
 
@@ -29,9 +29,9 @@ defmodule Mine.MixProject do
   defp deps do
     [
       {:excoveralls, "~> 0.12.0", only: :test},
-      {:ex_doc, "~> 0.19", only: [:dev, :test]},
-      {:dialyxir, "~> 0.5", only: [:dev], runtime: false},
-      {:benchee, "~> 1.0.1", only: :bench}
+      {:ex_doc, "~> 0.21.2", only: [:dev, :test]},
+      {:benchee, "~> 1.0.1", only: :bench},
+      {:benchee_markdown, "~> 0.2.3", only: :bench}
     ]
   end
 
@@ -40,7 +40,9 @@ defmodule Mine.MixProject do
       name: :mine,
       licenses: ["MIT"],
       maintainers: ["Spencer Gilson"],
-      links: %{"GitHub" => "https://github.com/sgilson/mine"}
+      links: %{
+        "GitHub" => "https://github.com/sgilson/mine"
+      }
     ]
   end
 
@@ -56,11 +58,13 @@ defmodule Mine.MixProject do
   def docs do
     [
       source_url: "https://github.com/sgilson/mine",
-      main: "Mine",
-      extras: ["README.md"]
+      main: "readme",
+      extras: ["README.md"] ++ benchmark_results(),
+      groups_for_extras: [
+        Benchmarks: ~r(bench/out)
+      ]
     ]
   end
 
-  defp elixirc_paths(:test), do: ["test/benchmark", "lib"]
-  defp elixirc_paths(_), do: ["lib"]
+  defp benchmark_results, do: Path.wildcard("bench/out/*.md")
 end

@@ -1,7 +1,7 @@
-defmodule PortBase do
+defmodule Port.ElixirSingleView do
   defstruct [:num, :enabled]
 
-  def to_view(%PortBase{num: num, enabled: enabled}) do
+  def to_view(%Port.ElixirSingleView{num: num, enabled: enabled}) do
     %{
       "$" => num,
       "@enabled" => enabled
@@ -9,11 +9,30 @@ defmodule PortBase do
   end
 
   def from_view(source) do
-    %PortBase{num: Map.get(source, "$", 3000), enabled: Map.get(source, "@enabled")}
+    %Port.ElixirSingleView{num: Map.get(source, "$", 3000), enabled: Map.get(source, "@enabled")}
   end
 end
 
-defmodule PortMine do
+defmodule Port.ElixirMultipleViews do
+  defstruct [:num, :enabled]
+
+  def to_view(struct, view \\ :default)
+  def to_view(%Port.ElixirMultipleViews{num: num, enabled: enabled}, :default) do
+    %{
+      "$" => num,
+      "@enabled" => enabled
+    }
+  end
+  def to_view(_, _), do: nil
+
+  def from_view(source, view \\ :default)
+  def from_view(source, :default) do
+    %Port.ElixirMultipleViews{num: Map.get(source, "$", 3000), enabled: Map.get(source, "@enabled")}
+  end
+  def from_view(_, _), do: nil
+end
+
+defmodule Port.Mine do
   use Mine
 
   defstruct [:num, :enabled]
@@ -24,26 +43,58 @@ defmodule PortMine do
   end
 end
 
-to_view_jobs = %{
-  "Base" => &PortBase.to_view(struct(PortBase, &1)),
-  "Mine" => &PortMine.to_view(struct(PortMine, &1))
-}
+defmodule Mine.BenchmarkRunner do
 
-to_view_data = %{
-  "empty" => [],
-  "expected" => [num: 4000, enabled: true]
-}
+  @time 2
+  @memory_time 2
 
-from_view_jobs = %{
-  "Base" => &PortBase.from_view/1,
-  "Mine" => &PortMine.from_view/1
-}
+  defp out_file(name) do
+    "bench/out/#{name}_#{Mine.MixProject.get_version()}_report.md"
+  end
 
-from_view_data = %{
-  "empty map" => %{},
-  "expected" => %{"$" => 2000, "@enabled" => false}
-}
+  defp run_test(title, functions, inputs) do
+    Benchee.run(
+      functions,
+      inputs: inputs,
+      title: "Benchmark - #{title}",
+      time: @time,
+      memory_time: @memory_time,
+      formatters: [{Benchee.Formatters.Markdown, file: out_file(title)}]
+    )
+  end
 
+  def run_all do
+    run_test(
+      "to_view",
+      %{
+        "Elixir - Functions with Arity 1" => &Port.ElixirSingleView.to_view(struct(Port.ElixirSingleView, &1)),
+        "Elixir - Functions with Arity >1" => &Port.ElixirMultipleViews.to_view(struct(Port.ElixirMultipleViews, &1)),
+        "Mine" => &Port.Mine.to_view(struct(Port.Mine, &1))
+      },
+      %{
+        "empty" => [],
+        "expected" => [
+          num: 4000,
+          enabled: true
+        ]
+      }
+    )
+    run_test(
+      "from_view",
+      %{
+        "Elixir - Functions with Arity 1" => &Port.ElixirSingleView.from_view/1,
+        "Elixir - Functions with Arity >1" => &Port.ElixirMultipleViews.from_view/1,
+        "Mine" => &Port.Mine.from_view/1
+      },
+      %{
+        "empty map" => %{},
+        "expected" => %{
+          "$" => 2000,
+          "@enabled" => false
+        }
+      }
+    )
+  end
+end
 
-Benchee.run(to_view_jobs, inputs: to_view_data)
-Benchee.run(from_view_jobs, inputs: from_view_data)
+Mine.BenchmarkRunner.run_all()

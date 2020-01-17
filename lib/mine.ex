@@ -248,15 +248,3 @@ defmodule Mine do
 
   def valid_key?(_), do: false
 end
-
-# defmodule User do
-#  use Mine
-#
-#  defstruct [:name]
-#
-#  default_view :api
-#
-#  defview :api do
-#    alias_field(:name, "nombre")
-#  end
-# end
