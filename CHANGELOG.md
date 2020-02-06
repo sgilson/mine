@@ -28,6 +28,8 @@
 ### Improvements
 -   Macro hygiene. `alias_field`, `ignore_field`, etc are now scoped to 
     `defview`.
+-   If `as` option is not passed to `alias_field`, the key name will be 
+    turned into a string and used instead.
 -   Fixed edge case where aliasing after a `defview` would complain because
     the view_agent was still registered but not alive.
     ```elixir
