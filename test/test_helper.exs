@@ -1,13 +1,20 @@
-ExUnit.start(exclude: :benchmark)
+ExUnit.start()
 
 defmodule CompilerAssertions do
-  # credit to https://gist.github.com/henrik/1054546364ac68da4102
-  defmacro assert_compile_time_raise(expected_message, quoted) do
+  # with some help from: https://gist.github.com/henrik/1054546364ac68da4102
+  defmacro assert_compiler_raise(expected_message, error_type \\ Mine.View.CompileError, quoted) do
     quote do
-      assert_raise(Mine.View.CompileError, unquote(expected_message), fn ->
+      assert_raise(unquote(error_type), unquote(expected_message), fn ->
         unquote(Macro.escape(quoted))
         |> Code.eval_quoted()
       end)
+    end
+  end
+
+  defmacro assert_compiles(quoted) do
+    quote do
+      unquote(Macro.escape(quoted))
+      |> Code.eval_quoted()
     end
   end
 end
