@@ -1,7 +1,7 @@
 defmodule Mine.MixProject do
   use Mix.Project
 
-  @version "0.2.0"
+  @version "0.2.1"
   def get_version, do: @version
 
   def project do
@@ -29,7 +29,7 @@ defmodule Mine.MixProject do
   defp deps do
     [
       {:excoveralls, "~> 0.12.0", only: :test},
-      {:ex_doc, "~> 0.21.2", only: [:dev, :test]},
+      {:ex_doc, "~> 0.21.2", only: :dev},
       {:benchee, "~> 1.0.1", only: :bench},
       {:benchee_markdown, "~> 0.2.3", only: :bench}
     ]
@@ -59,7 +59,7 @@ defmodule Mine.MixProject do
     [
       source_url: "https://github.com/sgilson/mine",
       main: "readme",
-      extras: ["README.md"] ++ benchmark_results(),
+      extras: ["README.md", "CHANGELOG.md"] ++ benchmark_results(),
       groups_for_extras: [
         Benchmarks: ~r(bench/out)
       ]

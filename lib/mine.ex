@@ -1,10 +1,9 @@
 defmodule Mine do
-  @type key :: atom | String.t()
-  defguardp is_valid_key?(val) when is_atom(val) or is_binary(val)
+  import Mine.AstUtils
 
   defmacro __using__(_opts) do
     quote do
-      import Mine
+      import Mine, only: [defview: 1, defview: 2, default_view: 1]
 
       @mine true
       @mine_default_view :default
@@ -28,8 +27,11 @@ defmodule Mine do
 
   defmacro defview(name \\ :default, do: body) do
     prelude =
-      quote bind_quoted: [name: name] do
-        unless valid_key?(name) do
+      quote bind_quoted: [
+              name: name
+            ],
+            unquote: true do
+        unless Mine.valid_key?(name) do
           raise Mine.View.CompileError,
             module: __MODULE__,
             view: name,
@@ -40,7 +42,7 @@ defmodule Mine do
             """
         end
 
-        unless has_struct?(__MODULE__) do
+        unless Mine.has_struct?(__MODULE__) do
           raise Mine.View.CompileError,
             module: __MODULE__,
             view: name,
@@ -69,10 +71,19 @@ defmodule Mine do
 
         # start an agent to keep track of state for this view
         {:ok, _} = Mine.Registry.start_view_agent(__MODULE__, name)
+
+        try do
+          import Mine
+          unquote(body)
+        after
+          :ok
+        end
       end
 
     postlude =
-      quote bind_quoted: [name: name] do
+      quote bind_quoted: [
+              name: name
+            ] do
         {:ok, view_agent} = Mine.Registry.lookup(__MODULE__, name)
 
         view = Mine.View.compose(view_agent)
@@ -90,13 +101,11 @@ defmodule Mine do
         Module.eval_quoted(__MODULE__, to_view)
         Module.eval_quoted(__MODULE__, from_view)
 
-        # shut down agent for this view
-        Mine.View.stop(view_agent)
+        Mine.Registry.shutdown_view_agent(__MODULE__, name)
       end
 
     quote do
       unquote(prelude)
-      unquote(body)
       unquote(postlude)
     end
   end
@@ -113,12 +122,14 @@ defmodule Mine do
   # Macros
 
   defmacro alias_field(key, opts) when is_list(opts) do
+    opts = expand_aliases(opts, __CALLER__)
+
     quote do
       Mine.__alias_field__(
         __MODULE__,
         Module.get_attribute(__MODULE__, :mine_current),
         unquote(key),
-        unquote(opts)
+        unquote(Macro.escape(opts))
       )
     end
   end
@@ -140,7 +151,7 @@ defmodule Mine do
         __MODULE__,
         Module.get_attribute(__MODULE__, :mine_current),
         unquote(key),
-        unquote(value)
+        unquote(Macro.escape(value))
       )
     end
   end
@@ -164,6 +175,9 @@ defmodule Mine do
   # Macro callbacks
 
   def __alias_field__(mod, view_name, key, opts) when is_list(opts) do
+    # ensure :as has a value
+    opts = Keyword.put_new_lazy(opts, :as, fn -> Atom.to_string(key) end)
+
     get_view!(mod, view_name, :alias_field)
     |> Mine.View.add_alias_field(key, struct(Mine.Alias, opts))
     |> handle_view_call(mod, view_name, key)
@@ -182,22 +196,32 @@ defmodule Mine do
   end
 
   defp handle_view_call(res, mod, view_name, key) do
-    case res do
-      {:error, :duplicate} ->
-        raise Mine.View.CompileError,
-          module: mod,
-          view: view_name,
-          message: "#{key} is defined more than once."
+    msg =
+      case res do
+        {:error, :duplicate} ->
+          "#{key} is defined more than once."
 
-      {:error, :not_found} ->
-        raise Mine.View.CompileError,
-          module: mod,
-          view: view_name,
-          message: "#{key} was assigned but it does not exist in the corresponding struct."
+        {:error, :not_found} ->
+          "#{key} was assigned but it does not exist in the corresponding struct."
 
-      :ok ->
-        :ok
+        {:error, {:invalid_key, key, val}} ->
+          "#{inspect(val)} is not a valid value for #{key}. Value must fulfill Mine.is_valid_key?/1"
+
+        {:error, {:not_a_function, val}} ->
+          "#{inspect(val)} should be a function"
+
+        :ok ->
+          :ok
+      end
+
+    if msg != :ok do
+      raise Mine.View.CompileError,
+        module: mod,
+        view: view_name,
+        message: msg
     end
+
+    :ok
   end
 
   def get_view!(mod, view_name, operation_name \\ nil) do
@@ -205,11 +229,15 @@ defmodule Mine do
       {:ok, pid} ->
         pid
 
+      # coveralls-ignore-start
       {:error, :not_found} ->
+        # this should never happen
         raise Mine.View.CompileError,
           module: mod,
           view: view_name,
           message: "#{operation_name} cannot be used outside defview"
+
+        # coveralls-ignore-stop
     end
   end
 
@@ -238,13 +266,14 @@ defmodule Mine do
 
         Alternatively, modules that only use defview/1 once may omit a view name.
         """
-    else
-      :ok
     end
+
+    :ok
   end
 
+  @type key :: atom | String.t()
   @spec valid_key?(any) :: boolean
-  def valid_key?(val) when is_valid_key?(val), do: true
+  def valid_key?(val) when is_atom(val) or is_binary(val), do: true
 
   def valid_key?(_), do: false
 end

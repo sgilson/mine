@@ -4,10 +4,10 @@ defmodule Mine.View do
 
   # Struct
 
-  @type alias_map :: %{Mine.key() => Mine.Alias.t()}
-  @type ignored_fields :: %{Mine.key() => boolean}
-  @type additional_fields :: %{Mine.key() => any}
   @type struct_aliases :: %{optional(atom) => Mine.Alias.t()}
+  @type alias_map :: %{Mine.key() => Mine.Alias.t()}
+  @type additional_fields :: %{Mine.key() => any}
+  @type ignored_fields :: %{Mine.key() => boolean}
   @type t :: %__MODULE__{
           name: Mine.key(),
           struct_aliases: struct_aliases,
@@ -38,7 +38,8 @@ defmodule Mine.View do
   end
 
   def add_alias_field(pid, key, alias_struct = %Mine.Alias{}) do
-    with :ok <- Agent.get(pid, &check_key(&1, key)) do
+    with :ok <- Agent.get(pid, &check_key(&1, key)),
+         :ok <- Mine.Alias.validate(alias_struct) do
       Agent.update(pid, &put_alias(&1, key, alias_struct))
     end
   end
