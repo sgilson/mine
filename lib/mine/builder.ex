@@ -5,8 +5,12 @@ defmodule Mine.Builder do
     map_body_ast =
       view
       |> Enum.map(fn
-        {old, %Alias{as: as, default: default}} ->
-          {as, access_struct(old, default)}
+        {old, %Alias{as: as, default: default, map_to: map_to}} ->
+          {
+            as,
+            access_struct(old, default)
+            |> conditionally_wrap(map_to)
+          }
 
         kv ->
           kv
@@ -46,10 +50,7 @@ defmodule Mine.Builder do
 
   defp match_aliased_keys(map) when is_map(map) do
     map
-    |> Enum.filter(fn
-      {_, %Mine.Alias{}} -> true
-      _ -> false
-    end)
+    |> Enum.filter(&val_is_alias?/1)
     |> Enum.map(&elem(&1, 0))
     |> Enum.map(fn k ->
       quote(do: {unquote(k), unquote(Macro.var(k, nil))})
@@ -58,20 +59,33 @@ defmodule Mine.Builder do
 
   defp access_aliased_keys(map) when is_map(map) do
     map
-    |> Enum.filter(fn
-      {_, %Mine.Alias{}} -> true
-      _ -> false
-    end)
-    |> Enum.map(fn {k, alias} ->
+    |> Enum.filter(&val_is_alias?/1)
+    |> Enum.map(&construct_access/1)
+  end
+
+  defp construct_access({key, alias}) do
+    get_using_map =
       quote(
         do:
-          {unquote(k),
-           Map.get(
-             unquote(Macro.var(:source, nil)),
-             unquote(alias.as),
-             unquote(alias.default)
-           )}
+          Map.get(
+            unquote(Macro.var(:source, nil)),
+            unquote(alias.as),
+            unquote(alias.default)
+          )
       )
-    end)
+      |> conditionally_wrap(alias.map_from)
+
+    quote(do: {unquote(key), unquote(get_using_map)})
   end
+
+  defp conditionally_wrap(expr, nil), do: expr
+
+  defp conditionally_wrap(expr, fun) do
+    quote do
+      unquote(fun).(unquote(expr))
+    end
+  end
+
+  defp val_is_alias?({_, %Mine.Alias{}}), do: true
+  defp val_is_alias?(_), do: false
 end
