@@ -26,7 +26,7 @@ defmodule User do
   defstruct [:name, :email, :password]
   
   defview do
-    alias_field :name, as: "userName", default: "John Doe"
+    alias_field :name, as: "userName", default: ""
     ignore_field :password
   end
 end
@@ -45,11 +45,26 @@ providing the benefit of runtime safety. To access the compiled view at runtime,
 the following methods will be found on your module.
 
 - `to_view/2`: Covert struct to a map for a given view
-- `from_view/2`: Convert source map to struct. Convenience 
-method for normalizing an input map, using it to create a struct, and validating the
-result. Relies on the above methods to accomplish this.
+   ```elixir
+   User.to_view(%User{name: "Bob", email: "abc@d.com", password: "secret"}, :default)
+   # %{"userName" => "Bob", "email" => "abc@d.com"}
+   ```
+- `from_view/2`: Convert source map to struct
+  ```elixir
+  User.from_view(%{"email" => "abc@d.com", "password" => "shouldn't be here"}, :default)
+  # %User{name: "", email: "abc@d.com", password: nil}
+  ```
 
-These functions should ideally be used between your serialization layer and business logic.
+The first argument for both of these functions is the data to translate. The second is the name of the view to use 
+for this translation. A module using Mine can have multiple views to capture the formatting requirements of 
+different domains. In this case, `:default` was not needed, since the second parameter defaults to this value 
+unless configured otherwise.
+
+These functions should ideally be used between your serialization layer and business logic. For example,
+after retrieving data from a third party API, your application would deserialiaze the data using 
+[devinus/poison](https://github.com/devinus/poison) or [michalmuskala/jason](https://github.com/michalmuskala/jason),
+pass the resulting map through Mine, and then validate the results using an 
+[Ecto changeset](https://hexdocs.pm/ecto/Ecto.Changeset.html#content) before persisting the data.
 
 More info on these functions can be found on HexDocs.
 
@@ -74,16 +89,19 @@ Ignored in `from_view`.
 ### Named Views
 
 In some cases, it may not be enough to have a single exported view of a struct.
-To support this use case, every view created by `Mine` has a name (with `:default`)
-being the default. The additional functions `to_view/1` and `from_view/1` work with 
-the default view name.
+To support this use case, every view created by `Mine` has a name. `:default` will
+be used when a name is not provided.
 
-A more complicated `User` module may declare views such as these:
+`default_view/1` changes which view is used for the single arity versions of 
+`to_view` and `from_view`.
+
+A more complicated `User` module may look something like this:
 
 ```elixir
 ...
 
-# functions with arity 1 will use this view
+# to_veiw/1 and from_view/1 will use this view
+# instead of :default
 default_view :front_end
 
 # other fields will remain untouched
@@ -107,7 +125,7 @@ instances in which I would need to map a struct's key, ignore certain fields,
 or add constant fields to outgoing requests. The process of setting up these mappings
 is tiresome and potentially error prone.
 
-Let's take the most extreme example I encountered. This is the required JSON format
+Let's take a small, real-world example. This is the required JSON format
 for a port in an unnamed API:
 
 ```json
@@ -116,15 +134,14 @@ for a port in an unnamed API:
   "@enabled": false
 }
 ```
-
-Peculiar formats such as this were littered throughout the API, leading to several
+Formats such as this were scattered throughout the API, leading to several
 modules with structures similar to the following:
 
 ```elixir
-defmodule PortV1 do
+defmodule Port do
   defstruct [:num, :enabled]
 
-  def to_view(%PortV1{num: num, enabled: enabled}) do
+  def to_view(%Port{num: num, enabled: enabled}) do
     %{
       "$" => num,
       "@enabled" => enabled
@@ -132,7 +149,7 @@ defmodule PortV1 do
   end
 
   def from_view(%{"$" => num, "@enabled" => enabled}) do
-    %PortV1{num: num, enabled: enabled}
+    %Port{num: num, enabled: enabled}
   end
 end
 ```
@@ -144,11 +161,11 @@ Code like this:
 - can be error prone
 
 Given these conditions, I opted to break my first rule of writing macros in Elixir
-(avoid it). Instead of the example seen above, using `mine` allows for a much more
+(avoid them). Instead of the example seen above, using `mine` allows for a much more
 concise representation of a mapping to the external world.
 
 ```elixir
-defmodule PortV2 do
+defmodule Port do
   use Mine
   defstruct [:num, :enabled]
 
