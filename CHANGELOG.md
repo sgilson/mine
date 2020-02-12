@@ -1,5 +1,21 @@
 # Changelog
 
+## v0.2.2
+
+### Improvements
+-   Fixing scope issues. Previously, `map_to` and `map_from` were not able
+    to access imported or required functions. Now all functions that are
+    valid in the scope of a normal function will be available for use within
+    `defview`.
+-   Adding documentation for important macros. Top level documentation for Mine
+    module is still lacking.
+-   Switched to using `Macro.struct!` to determine whether the host module
+    has declared a struct. These failures will now be CompileError instead of
+    Mine.CompileError.
+-   Lots of cleanup on the underlying implementation. Removed the use of processes
+    to keep track of current progress in favor of writing to module attributes.
+    Should increase stability and speed up compilation a bit.
+
 ## v0.2.1
 
 ### New Feature: Mapping Functions

@@ -1,16 +1,6 @@
 defmodule Mine.AstUtils do
   @moduledoc false
 
-  def expand_aliases(ast, %Macro.Env{} = env) do
-    Macro.postwalk(ast, fn
-      {:__aliases__, _, _} = node ->
-        Macro.expand(node, env)
-
-      node ->
-        node
-    end)
-  end
-
   def ast_is_function?(ast) do
     ast_function_info(ast)[:type] != :not_a_function
   end

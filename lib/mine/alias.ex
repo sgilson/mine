@@ -1,8 +1,5 @@
 defmodule Mine.Alias do
-  @moduledoc """
-  Stores the data associated with an aliased field. Composed at compile time
-  and used during runtime to determine how a field should be translated.
-  """
+  @moduledoc false
 
   import Mine.AstUtils
 

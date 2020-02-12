@@ -1,6 +1,4 @@
 defmodule Mine do
-  import Mine.AstUtils
-
   defmacro __using__(_opts) do
     quote do
       import Mine, only: [defview: 1, defview: 2, default_view: 1]
@@ -8,13 +6,12 @@ defmodule Mine do
       @mine true
       @mine_default_view :default
       @mine_views %{}
-      @mine_current nil
+      @mine_current_name nil
 
       Module.register_attribute(__MODULE__, :mine_name, accumulate: false)
       Module.register_attribute(__MODULE__, :mine_names, accumulate: true)
 
-      {:ok, _} = Mine.Registry.start_link()
-      @after_compile {Mine, :finalize_view}
+      @after_compile Mine
 
       def __mine__(:default_view), do: @mine_default_view
       def __mine__(:names), do: Module.get_attribute(__MODULE__, :mine_names)
@@ -25,52 +22,32 @@ defmodule Mine do
     end
   end
 
+  @doc """
+  Used to specify the requirements for generating `to_view` and `from_view` functions
+  on a module.
+
+  Within the scope of this macro, `Mine.alias_field/2`, `Mine.add_field/2`, and
+  `Mine.ignore_field/1` will be in scope.
+
+  The `name` argument is a value used to identify this view when invoking the
+  generated `to_view` and `from_view` functions. This defaults to, well, `:default`.
+
+  If there are multiple views declared in a module and you wish to change the
+  default behavior of the single arity `to_view` and `from_view` functions,
+  use `Mine.default_view/1`.
+
+  Note that any fields that exist in the modules struct and are not explicitly
+  ignored with a call to `Mine.ignore_field/1` will not be ignored. This behavior
+  will be configurable in the future.
+  """
   defmacro defview(name \\ :default, do: body) do
     prelude =
-      quote bind_quoted: [
-              name: name
-            ],
-            unquote: true do
-        unless Mine.valid_key?(name) do
-          raise Mine.View.CompileError,
-            module: __MODULE__,
-            view: name,
-            message: """
-            not a valid view name
+      quote bind_quoted: [name: name], unquote: true do
+        Mine.validate_defview!(__MODULE__, __ENV__, name)
 
-            Acceptable types are: Atom, Binary
-            """
-        end
-
-        unless Mine.has_struct?(__MODULE__) do
-          raise Mine.View.CompileError,
-            module: __MODULE__,
-            view: name,
-            message: """
-            must define a struct to use #{inspect(Mine)}
-
-            Make sure #{inspect(__MODULE__)} uses defstruct/1 before defview.
-            """
-        end
-
-        if Enum.any?(@mine_names, &(&1 == name)) do
-          raise Mine.View.CompileError,
-            module: __MODULE__,
-            view: name,
-            message: """
-            view names must be unique.
-
-            #{name} has already been declared in this module.
-            """
-        end
-
-        # save name to list
         @mine_names name
-        # set current view name
-        @mine_current name
-
-        # start an agent to keep track of state for this view
-        {:ok, _} = Mine.Registry.start_view_agent(__MODULE__, name)
+        @mine_current_name name
+        @mine_current_view Mine.View.new(__MODULE__, name)
 
         try do
           import Mine
@@ -81,27 +58,26 @@ defmodule Mine do
       end
 
     postlude =
-      quote bind_quoted: [
-              name: name
-            ] do
-        {:ok, view_agent} = Mine.Registry.lookup(__MODULE__, name)
+      quote bind_quoted: [name: name] do
+        final_view =
+          Module.get_attribute(__MODULE__, :mine_current_view)
+          |> Mine.View.compose()
 
-        view = Mine.View.compose(view_agent)
-        default_view = @mine_default_view
-        names = @mine_names
+        default_view = Module.get_attribute(__MODULE__, :mine_default_view)
+        names = Module.get_attribute(__MODULE__, :mine_names)
 
         def __mine__(:default_view), do: unquote(default_view)
         def __mine__(:names), do: unquote(Macro.escape(names))
-        def __mine__({:view, unquote(name)}), do: unquote(Macro.escape(view))
+        def __mine__({:view, unquote(name)}), do: unquote(Macro.escape(final_view))
+
         defoverridable __mine__: 1
 
-        to_view = Mine.Builder.build_to_view(__MODULE__, name, view)
-        from_view = Mine.Builder.build_from_view(__MODULE__, name, view)
+        to_view = Mine.Builder.build_to_view(__MODULE__, name, final_view)
+        from_view = Mine.Builder.build_from_view(__MODULE__, name, final_view)
 
-        Module.eval_quoted(__MODULE__, to_view)
-        Module.eval_quoted(__MODULE__, from_view)
-
-        Mine.Registry.shutdown_view_agent(__MODULE__, name)
+        Module.eval_quoted(__ENV__, to_view)
+        Module.eval_quoted(__ENV__, from_view)
+        Module.delete_attribute(__MODULE__, :mine_current_view)
       end
 
     quote do
@@ -110,62 +86,150 @@ defmodule Mine do
     end
   end
 
-  @doc """
-  Checks if `mod` has declared the functions required to be a struct at compile
-  time.
-  """
-  @spec has_struct?(module) :: boolean
-  def has_struct?(mod) when is_atom(mod) do
-    Module.defines?(mod, {:__struct__, 0}) && Module.defines?(mod, {:__struct__, 1})
+  @doc false
+  def validate_defview!(mod, env, name) do
+    validate_name!(mod, name)
+    Macro.struct!(mod, env)
   end
 
   # Macros
 
-  defmacro alias_field(key, opts) when is_list(opts) do
-    opts = expand_aliases(opts, __CALLER__)
+  @doc """
+  Changes the name use to identify a field in an external view.
 
+  There are many cases where the name you use for a field within your Elixir
+  application is not the name used outside of your application. This is
+  especially apparent when interfacing with an API that defines variables
+  in camel case. Since we conventionally represent atoms (and therefore the keys
+  of structs) in snake case, this can lead to code mapping field names to and
+  from the external naming convention.
+
+  `alias_field/2` is a simpler way to represent this relationship.
+
+  Options:
+
+  - as: Name to use when mapping to/from an external view
+  - default: Value to be used when struct does not contain an entry for the
+    given key
+  - map_to: Function with arity 1 that will be invoked on the existing value
+    in the struct when using `to_view`
+  - map_from: Function with arity 1 that will be invoked on the value found in
+    the external view when using `from_view`
+
+  Example:
+
+      defmodule MyModule do
+        use Mine
+        struct [:my_field, :foo, :to_upper]
+
+        defview do
+          alias_field :my_field, as: "myField"
+          alias_field :foo, default: "bar"
+          alias_field :to_upper, map_to: &String.upcase/1
+        end
+      end
+
+      MyModule.to_view(%MyModule{my_field: 1, to_upper: "upper!"})
+      # %{"myField" => 1, "foo" => "bar", "to_upper" => "UPPER!"}
+  """
+  defmacro alias_field(key, opts) when is_list(opts) do
     quote do
-      Mine.__alias_field__(
-        __MODULE__,
-        Module.get_attribute(__MODULE__, :mine_current),
-        unquote(key),
-        unquote(Macro.escape(opts))
-      )
+      Mine.__alias_field__(__MODULE__, unquote(key), unquote(Macro.escape(opts)))
     end
   end
 
   defmacro alias_field(key, as) do
     quote do
-      Mine.__alias_field__(
-        __MODULE__,
-        Module.get_attribute(__MODULE__, :mine_current),
-        unquote(key),
-        as: unquote(as)
-      )
+      Mine.__alias_field__(__MODULE__, unquote(key), as: unquote(as))
     end
   end
 
+  @doc """
+  When `to_view` is invoked, an extra field with the key `key` will be added
+  to the resulting map with the value `value`.
+
+  Useful when an external API is not hygienic and requires constant metadata for
+  an entity to be properly parsed.
+
+  For example:
+
+      defmodule MyModule do
+        use Mine
+        struct [:field]
+
+        defview do
+          add_field "@class", "Some.Java.Class"
+        end
+      end
+
+      MyModule.to_view(%MyModule{field: "example"})
+      # %{"field" => "example", "@class" => "Some.Java.Class"}
+  """
   defmacro add_field(key, value) do
     quote do
-      Mine.__add_field__(
-        __MODULE__,
-        Module.get_attribute(__MODULE__, :mine_current),
-        unquote(key),
-        unquote(Macro.escape(value))
-      )
+      Mine.__add_field__(__MODULE__, unquote(key), unquote(Macro.escape(value)))
     end
   end
 
+  @doc """
+  Declares that the given key will not be considered when mapping a struct in
+  either `to_view` or `from_view`.
+
+  For example:
+
+      defmodule MyModule do
+        use Mine
+        struct [:public, :private]
+
+        defview do
+          ignore_field :private
+        end
+      end
+
+      MyModule.to_view(%MyModule{public: "hello", private: "world"})
+      # %{"public" => "hello"}
+
+      MyModule.from_view(%{"public" => "hello", "private" => "world"})
+      # %MyModule{public: "hello"}
+
+  A field that has been declared as ignored cannot be used in `Mine.alias_field/2` and
+  vice versa. Doing so will raise an error.
+  """
   defmacro ignore_field(key) do
     quote do
-      Mine.__ignore_field__(
-        __MODULE__,
-        Module.get_attribute(__MODULE__, :mine_current),
-        unquote(key)
-      )
+      Mine.__ignore_field__(__MODULE__, unquote(key))
     end
   end
 
+  @doc """
+  Changes the name of the default view to `name`.
+
+  The default view name will be the fallback parameter for any calls to
+  `to_view/1` and `from_view/1`.
+
+  Normally, these functions will be generated with signatures similar to the
+  following:
+
+      def to_view(struct = %MyModule{}, view \\\\ :default)
+      def from_view(map, view \\\\ :default)
+
+  But declaring `default_view :other` in your module...
+
+      defmodule MyModule do
+        use Mine
+        # create struct
+        default_view :other
+
+        defview :other do
+          # ...
+        end
+      end
+
+  ...yields signatures like these:
+
+      def to_view(struct = %MyModule{}, view \\\\ :other)
+      def from_view(map, view \\\\ :other)
+  """
   defmacro default_view(name) do
     quote do
       Mine.__set_default_view__(__MODULE__, unquote(name))
@@ -174,28 +238,32 @@ defmodule Mine do
 
   # Macro callbacks
 
-  def __alias_field__(mod, view_name, key, opts) when is_list(opts) do
+  def __alias_field__(mod, key, opts) when is_list(opts) do
     # ensure :as has a value
     opts = Keyword.put_new_lazy(opts, :as, fn -> Atom.to_string(key) end)
 
-    get_view!(mod, view_name, :alias_field)
+    current_view(mod)
     |> Mine.View.add_alias_field(key, struct(Mine.Alias, opts))
-    |> handle_view_call(mod, view_name, key)
+    |> handle_view_update(mod, key)
   end
 
-  def __add_field__(mod, view_name, key, value) do
-    get_view!(mod, view_name, :add_field)
+  def __add_field__(mod, key, value) do
+    current_view(mod)
     |> Mine.View.add_additional_field(key, value)
-    |> handle_view_call(mod, view_name, key)
+    |> handle_view_update(mod, key)
   end
 
-  def __ignore_field__(mod, view_name, key) do
-    get_view!(mod, view_name, :ignore_field)
+  def __ignore_field__(mod, key) do
+    current_view(mod)
     |> Mine.View.add_ignored_field(key)
-    |> handle_view_call(mod, view_name, key)
+    |> handle_view_update(mod, key)
   end
 
-  defp handle_view_call(res, mod, view_name, key) do
+  def __set_default_view__(mod, name) do
+    Module.put_attribute(mod, :mine_default_view, name)
+  end
+
+  defp handle_view_update(res, mod, key) do
     msg =
       case res do
         {:error, :duplicate} ->
@@ -210,63 +278,30 @@ defmodule Mine do
         {:error, {:not_a_function, val}} ->
           "#{inspect(val)} should be a function"
 
-        :ok ->
+        {:ok, view} ->
+          update_current_view(mod, view)
           :ok
       end
 
     if msg != :ok do
       raise Mine.View.CompileError,
         module: mod,
-        view: view_name,
+        view: Module.get_attribute(mod, :mine_current_name),
         message: msg
     end
-
-    :ok
   end
 
-  def get_view!(mod, view_name, operation_name \\ nil) do
-    case Mine.Registry.lookup(mod, view_name) do
-      {:ok, pid} ->
-        pid
+  defp current_view(mod), do: Module.get_attribute(mod, :mine_current_view)
 
-      # coveralls-ignore-start
-      {:error, :not_found} ->
-        # this should never happen
-        raise Mine.View.CompileError,
-          module: mod,
-          view: view_name,
-          message: "#{operation_name} cannot be used outside defview"
-
-        # coveralls-ignore-stop
-    end
+  defp update_current_view(mod, view) do
+    Module.put_attribute(mod, :mine_current_view, view)
   end
 
-  @doc "Sets the `@mine_default_view` attribute for `mod`."
-  @spec __set_default_view__(module, key) :: :ok
-  def __set_default_view__(mod, name) do
-    Module.put_attribute(mod, :mine_default_view, name)
-  end
-
-  @doc """
-  Verifies that the declared default key corresponds to an existing view.
-
-  Raises if this condition fails.
-  """
-  def finalize_view(%{module: mod}, _byte_code) do
+  def __after_compile__(%{module: mod}, _) do
     default = mod.__mine__(:default_view)
     names = mod.__mine__(:names)
 
-    unless default in names do
-      raise Mine.View.CompileError,
-        module: mod,
-        message: """
-        Default view is set to #{inspect(default)}, but this view does not exist.
-
-        To set the default view, use the set_default_view/1 macro.
-
-        Alternatively, modules that only use defview/1 once may omit a view name.
-        """
-    end
+    validate_default_name!(mod, names, default)
 
     :ok
   end
@@ -276,4 +311,44 @@ defmodule Mine do
   def valid_key?(val) when is_atom(val) or is_binary(val), do: true
 
   def valid_key?(_), do: false
+
+  # Private
+
+  defp validate_name!(mod, name) do
+    unless Mine.valid_key?(name) do
+      raise Mine.View.CompileError,
+        module: mod,
+        view: name,
+        message: """
+        not a valid view name
+
+        Acceptable types are: Atom, Binary
+        """
+    end
+
+    if Enum.member?(Module.get_attribute(mod, :mine_names, []), name) do
+      raise Mine.View.CompileError,
+        module: mod,
+        view: name,
+        message: """
+        view names must be unique.
+
+        #{name} has already been declared in this module.
+        """
+    end
+  end
+
+  defp validate_default_name!(mod, names, default_name) do
+    unless default_name in names do
+      raise Mine.View.CompileError,
+        module: mod,
+        message: """
+        Default view is set to #{inspect(default_name)}, but this view does not exist.
+
+        To set the default view, use the set_default_view/1 macro.
+
+        Alternatively, modules that only use defview/1 once may omit a view name.
+        """
+    end
+  end
 end
