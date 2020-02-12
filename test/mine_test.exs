@@ -209,7 +209,8 @@ defmodule MineTest do
 
   test "using defview/1 without defstruct" do
     assert_compiler_raise(
-      ~r/(must define a struct)/,
+      ~r/(struct)/,
+      CompileError,
       defmodule MissingStruct do
         use Mine
 
@@ -222,7 +223,8 @@ defmodule MineTest do
 
   test "using defview/1 before defstruct" do
     assert_compiler_raise(
-      ~r/(must define a struct)/,
+      ~r/(struct)/,
+      CompileError,
       defmodule BeforeStruct do
         use Mine
 
@@ -390,20 +392,19 @@ defmodule MineTest do
     )
   end
 
-  # TODO for 0.2.2 if possible
-  #  test "can use imported function as mapper" do
-  #    assert_compiles(
-  #      defmodule ImportedMapper do
-  #        use Mine
-  #        import String, only: [upcase: 1]
-  #        defstruct [:field]
-  #
-  #        defview do
-  #          alias_field(:field, map_to: &upcase/1)
-  #        end
-  #      end
-  #    )
-  #  end
+  test "can use imported function as mapper" do
+    assert_compiles(
+      defmodule ImportedMapper do
+        use Mine
+        import String, only: [upcase: 1]
+        defstruct [:field]
+
+        defview do
+          alias_field(:field, map_to: &upcase/1)
+        end
+      end
+    )
+  end
 
   test "must give a function to map_to" do
     assert_compiler_raise(

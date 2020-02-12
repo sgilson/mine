@@ -1,6 +1,8 @@
 defmodule Mine.Builder do
   alias Mine.Alias
 
+  @moduledoc false
+
   def build_to_view(module, view_name, view) do
     map_body_ast =
       view
