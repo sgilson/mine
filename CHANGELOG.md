@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.2.3
+
+### Improvements
+- Cleaning up generation logic a bit. Use of `Macro.var/2` was potentially unsafe,
+  but all uses have been addressed.
+
 ## v0.2.2
 
 ### Improvements
