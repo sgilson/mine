@@ -29,16 +29,20 @@ defmodule MineTest do
 
       BasicUser.module_info()
       |> Keyword.fetch!(:exports)
-      |> Enum.reject(fn {fun, _} ->
-        case to_string(fun) do
-          "__" <> _ -> true
-          "module_info" -> true
-          _ -> false
-        end
-      end)
-      |> Enum.each(fn {fun, _} ->
-        assert fun in allowed_funs
-      end)
+      |> Enum.reject(
+           fn {fun, _} ->
+             case to_string(fun) do
+               "__" <> _ -> true
+               "module_info" -> true
+               _ -> false
+             end
+           end
+         )
+      |> Enum.each(
+           fn {fun, _} ->
+             assert fun in allowed_funs
+           end
+         )
     end
 
     test "correct mappings for :api view" do
@@ -431,6 +435,25 @@ defmodule MineTest do
 
         defview do
           alias_field(:name, as: "Name", map_to: 1)
+        end
+      end
+    )
+  end
+
+  test "defview is not in scope within defview" do
+    assert_compiler_raise(
+      ~r/(undefined function)/,
+      CompileError,
+      defmodule BadNesting do
+        use Mine
+
+        defstruct [:name]
+
+        defview do
+          alias_field(:name, as: "Name", map_to: 1)
+          defview :nested do
+            alias_field(:name, as: "Name", map_to: 1)
+          end
         end
       end
     )
