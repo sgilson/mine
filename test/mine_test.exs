@@ -435,4 +435,46 @@ defmodule MineTest do
       end
     )
   end
+
+  test "defview is not in scope within defview" do
+    assert_compiler_raise(
+      ~r/(undefined function)/,
+      CompileError,
+      defmodule BadNesting do
+        use Mine
+
+        defstruct [:name]
+
+        defview do
+          alias_field(:name, as: "Name", map_to: 1)
+
+          defview :nested do
+            alias_field(:name, as: "Name", map_to: 1)
+          end
+        end
+      end
+    )
+  end
+
+  describe "overriding" do
+    assert_compiles(
+      defmodule Override do
+        use Mine
+
+        defstruct [:name]
+
+        defview do
+          alias_field(:name, as: "Name")
+        end
+
+        def to_view(nil, :default), do: to_view(%Override{name: nil})
+        def from_view(nil, :default), do: from_view(%{})
+      end
+    )
+
+    test "can use overridden functions" do
+      assert Override.to_view(nil, :default) == %{"Name" => nil}
+      assert Override.from_view(nil, :default) == %Override{name: nil}
+    end
+  end
 end

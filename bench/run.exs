@@ -26,7 +26,7 @@ defmodule Port.ElixirMultipleViews do
   def to_view(_, _), do: nil
 
   def from_view(source, view \\ :default)
-  def from_view(source, :default) do
+  def from_view(source = %{}, :default) do
     %Port.ElixirMultipleViews{num: Map.get(source, "$", 3000), enabled: Map.get(source, "@enabled")}
   end
   def from_view(_, _), do: nil
@@ -45,7 +45,7 @@ end
 
 defmodule Mine.BenchmarkRunner do
 
-  @time 2
+  @time 5
   @memory_time 2
 
   defp out_file(name) do
@@ -59,6 +59,7 @@ defmodule Mine.BenchmarkRunner do
       title: "Benchmark - #{title}",
       time: @time,
       memory_time: @memory_time,
+      after_scenario: fn _ -> :erlang.garbage_collect() end,
       formatters: [{Benchee.Formatters.Markdown, file: out_file(title)}]
     )
   end

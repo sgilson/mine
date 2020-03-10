@@ -50,7 +50,7 @@ defmodule Mine do
         @mine_current_view Mine.View.new(__MODULE__, name)
 
         try do
-          import Mine
+          import Mine, only: [alias_field: 2, add_field: 2, ignore_field: 1]
           unquote(body)
         after
           :ok

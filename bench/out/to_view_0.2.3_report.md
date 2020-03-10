@@ -1,6 +1,6 @@
 # Benchmark - to_view
 
-Benchmark run from 2020-01-17 19:15:08.455840Z UTC
+Benchmark run from 2020-03-10 16:05:15.048591Z UTC
 
 ## System
 
@@ -21,10 +21,10 @@ Benchmark suite executing on the following system:
     <td style="white-space: nowrap">7.70 GB</td>
   </tr><tr>
     <th style="white-space: nowrap">Elixir Version</th>
-    <td style="white-space: nowrap">1.9.4</td>
+    <td style="white-space: nowrap">1.10.1</td>
   </tr><tr>
     <th style="white-space: nowrap">Erlang Version</th>
-    <td style="white-space: nowrap">22.2</td>
+    <td style="white-space: nowrap">22.2.7</td>
   </tr>
 </table>
 
@@ -35,7 +35,7 @@ Benchmark suite executing with the following configuration:
 <table style="width: 1%">
   <tr>
     <th style="width: 1%">:time</th>
-    <td style="white-space: nowrap">2 s</td>
+    <td style="white-space: nowrap">5 s</td>
   </tr><tr>
     <th>:parallel</th>
     <td style="white-space: nowrap">1</td>
@@ -62,27 +62,27 @@ Run Time
   </tr>
   <tr>
     <td style="white-space: nowrap">Elixir - Functions with Arity 1</td>
-    <td style="white-space: nowrap; text-align: right">76.48 M</td>
-    <td style="white-space: nowrap; text-align: right">13.07 ns</td>
-    <td style="white-space: nowrap; text-align: right">±28689.35%</td>
-    <td style="white-space: nowrap; text-align: right">0 ns</td>
-    <td style="white-space: nowrap; text-align: right">0 ns</td>
+    <td style="white-space: nowrap; text-align: right">18.46 M</td>
+    <td style="white-space: nowrap; text-align: right">54.16 ns</td>
+    <td style="white-space: nowrap; text-align: right">±18333.91%</td>
+    <td style="white-space: nowrap; text-align: right">17 ns</td>
+    <td style="white-space: nowrap; text-align: right">170 ns</td>
   </tr>
   <tr>
     <td style="white-space: nowrap">Mine</td>
-    <td style="white-space: nowrap; text-align: right">74.43 M</td>
-    <td style="white-space: nowrap; text-align: right">13.44 ns</td>
-    <td style="white-space: nowrap; text-align: right">±24194.71%</td>
-    <td style="white-space: nowrap; text-align: right">0 ns</td>
-    <td style="white-space: nowrap; text-align: right">6 ns</td>
+    <td style="white-space: nowrap; text-align: right">12.43 M</td>
+    <td style="white-space: nowrap; text-align: right">80.47 ns</td>
+    <td style="white-space: nowrap; text-align: right">±19567.90%</td>
+    <td style="white-space: nowrap; text-align: right">35 ns</td>
+    <td style="white-space: nowrap; text-align: right">317 ns</td>
   </tr>
   <tr>
     <td style="white-space: nowrap">Elixir - Functions with Arity >1</td>
-    <td style="white-space: nowrap; text-align: right">68.92 M</td>
-    <td style="white-space: nowrap; text-align: right">14.51 ns</td>
-    <td style="white-space: nowrap; text-align: right">±24759.87%</td>
-    <td style="white-space: nowrap; text-align: right">0 ns</td>
-    <td style="white-space: nowrap; text-align: right">126 ns</td>
+    <td style="white-space: nowrap; text-align: right">10.56 M</td>
+    <td style="white-space: nowrap; text-align: right">94.69 ns</td>
+    <td style="white-space: nowrap; text-align: right">±17261.83%</td>
+    <td style="white-space: nowrap; text-align: right">58 ns</td>
+    <td style="white-space: nowrap; text-align: right">398 ns</td>
   </tr>
 </table>
 Comparison
@@ -93,18 +93,18 @@ Comparison
     <th style="text-align: right">Slower</th>
   <tr>
     <td style="white-space: nowrap">Elixir - Functions with Arity 1</td>
-    <td style="white-space: nowrap;text-align: right">76.48 M</td>
+    <td style="white-space: nowrap;text-align: right">18.46 M</td>
     <td>&nbsp;</td>
   </tr>
   <tr>
     <td style="white-space: nowrap">Mine</td>
-    <td style="white-space: nowrap; text-align: right">74.43 M</td>
-    <td style="white-space: nowrap; text-align: right">1.03x</td>
+    <td style="white-space: nowrap; text-align: right">12.43 M</td>
+    <td style="white-space: nowrap; text-align: right">1.49x</td>
   </tr>
   <tr>
     <td style="white-space: nowrap">Elixir - Functions with Arity >1</td>
-    <td style="white-space: nowrap; text-align: right">68.92 M</td>
-    <td style="white-space: nowrap; text-align: right">1.11x</td>
+    <td style="white-space: nowrap; text-align: right">10.56 M</td>
+    <td style="white-space: nowrap; text-align: right">1.75x</td>
   </tr>
 </table>
 Memory Usage
@@ -146,27 +146,27 @@ Run Time
   </tr>
   <tr>
     <td style="white-space: nowrap">Mine</td>
-    <td style="white-space: nowrap; text-align: right">27.45 M</td>
-    <td style="white-space: nowrap; text-align: right">36.43 ns</td>
-    <td style="white-space: nowrap; text-align: right">±13258.40%</td>
-    <td style="white-space: nowrap; text-align: right">0 ns</td>
-    <td style="white-space: nowrap; text-align: right">556 ns</td>
+    <td style="white-space: nowrap; text-align: right">3.94 M</td>
+    <td style="white-space: nowrap; text-align: right">253.98 ns</td>
+    <td style="white-space: nowrap; text-align: right">±8388.92%</td>
+    <td style="white-space: nowrap; text-align: right">213 ns</td>
+    <td style="white-space: nowrap; text-align: right">403 ns</td>
   </tr>
   <tr>
     <td style="white-space: nowrap">Elixir - Functions with Arity 1</td>
-    <td style="white-space: nowrap; text-align: right">17.31 M</td>
-    <td style="white-space: nowrap; text-align: right">57.78 ns</td>
-    <td style="white-space: nowrap; text-align: right">±7814.67%</td>
-    <td style="white-space: nowrap; text-align: right">0 ns</td>
-    <td style="white-space: nowrap; text-align: right">996 ns</td>
+    <td style="white-space: nowrap; text-align: right">2.90 M</td>
+    <td style="white-space: nowrap; text-align: right">344.94 ns</td>
+    <td style="white-space: nowrap; text-align: right">±7796.64%</td>
+    <td style="white-space: nowrap; text-align: right">272 ns</td>
+    <td style="white-space: nowrap; text-align: right">981 ns</td>
   </tr>
   <tr>
     <td style="white-space: nowrap">Elixir - Functions with Arity >1</td>
-    <td style="white-space: nowrap; text-align: right">16.07 M</td>
-    <td style="white-space: nowrap; text-align: right">62.22 ns</td>
-    <td style="white-space: nowrap; text-align: right">±8013.65%</td>
-    <td style="white-space: nowrap; text-align: right">0 ns</td>
-    <td style="white-space: nowrap; text-align: right">669 ns</td>
+    <td style="white-space: nowrap; text-align: right">2.68 M</td>
+    <td style="white-space: nowrap; text-align: right">373.64 ns</td>
+    <td style="white-space: nowrap; text-align: right">±7120.25%</td>
+    <td style="white-space: nowrap; text-align: right">296 ns</td>
+    <td style="white-space: nowrap; text-align: right">928 ns</td>
   </tr>
 </table>
 Comparison
@@ -177,18 +177,18 @@ Comparison
     <th style="text-align: right">Slower</th>
   <tr>
     <td style="white-space: nowrap">Mine</td>
-    <td style="white-space: nowrap;text-align: right">27.45 M</td>
+    <td style="white-space: nowrap;text-align: right">3.94 M</td>
     <td>&nbsp;</td>
   </tr>
   <tr>
     <td style="white-space: nowrap">Elixir - Functions with Arity 1</td>
-    <td style="white-space: nowrap; text-align: right">17.31 M</td>
-    <td style="white-space: nowrap; text-align: right">1.59x</td>
+    <td style="white-space: nowrap; text-align: right">2.90 M</td>
+    <td style="white-space: nowrap; text-align: right">1.36x</td>
   </tr>
   <tr>
     <td style="white-space: nowrap">Elixir - Functions with Arity >1</td>
-    <td style="white-space: nowrap; text-align: right">16.07 M</td>
-    <td style="white-space: nowrap; text-align: right">1.71x</td>
+    <td style="white-space: nowrap; text-align: right">2.68 M</td>
+    <td style="white-space: nowrap; text-align: right">1.47x</td>
   </tr>
 </table>
 Memory Usage
