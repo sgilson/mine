@@ -6,6 +6,18 @@
 - Cleaning up generation logic a bit. Use of `Macro.var/2` was potentially unsafe,
   but all uses have been addressed.
 - Explicitly limiting Mine macros allowed within `defview`.
+- `from_view/2` will now only match on maps. Previous implementation matched 
+  everything, which 1) caused errors inside Mine if a map was not 
+  passed, 2) blocked client modules from defining additional `from_view/2` methods.
+  This appears to have a small performance impact, but the safety is worth it.
+  
+### Other
+- Getting reliable benchmarks is still an issue. The generated code is identical
+  to that written by hand, yet the performance seems to vary up to 60% in both
+  directions. Sometimes vanilla Elixir is faster, sometimes they are the same,
+  sometimes, Mine is faster. Disabling power management, closing all other 
+  programs, and manually triggering garbage collection between scenarios did 
+  not improve reliability.
 
 ## v0.2.2
 

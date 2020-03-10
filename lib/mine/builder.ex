@@ -57,8 +57,10 @@ defmodule Mine.Builder do
   # building from_view
 
   def build_from_view(module, view_name, view) do
+    source_var = var(:source, module)
+
     quote do
-      def from_view(unquote(var(:source, module)), unquote(view_name)) do
+      def from_view(unquote(source_var) = %{}, unquote(view_name)) do
         %unquote(module){unquote_splicing(access_aliased_keys(module, view))}
       end
     end

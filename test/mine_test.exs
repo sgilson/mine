@@ -455,4 +455,26 @@ defmodule MineTest do
       end
     )
   end
+
+  describe "overriding" do
+    assert_compiles(
+      defmodule Override do
+        use Mine
+
+        defstruct [:name]
+
+        defview do
+          alias_field(:name, as: "Name")
+        end
+
+        def to_view(nil, :default), do: to_view(%Override{name: nil})
+        def from_view(nil, :default), do: from_view(%{})
+      end
+    )
+
+    test "can use overridden functions" do
+      assert Override.to_view(nil, :default) == %{"Name" => nil}
+      assert Override.from_view(nil, :default) == %Override{name: nil}
+    end
+  end
 end
