@@ -30,6 +30,7 @@ defmodule Mine.MixProject do
     [
       {:excoveralls, "~> 0.12.0", only: :test},
       {:ex_doc, "~> 0.21.2", only: :dev},
+      {:git_hooks, "~> 0.4.1", only: [:test, :dev], runtime: false},
       {:benchee, "~> 1.0.1", only: :bench},
       {:benchee_markdown, "~> 0.2.3", only: :bench}
     ]
