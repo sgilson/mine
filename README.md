@@ -118,6 +118,18 @@ end
 ...
 ```
 
+After generation, the module will have function definitions similar to the following:
+
+```elixir
+def to_view(%MyModule{}, view \\ :front_end)
+def to_view(%MyModule{}, :front_end)
+def to_view(%MyModule{}, :third_party_api)
+
+# plus corresponding from_view functions
+```
+
+With this layout, you can let pattern matching determining which view to use.
+
 ## Rationale
 
 While interfacing with an external API written in Java, I frequently ran across 
