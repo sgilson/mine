@@ -1,7 +1,7 @@
 defmodule Mine.MixProject do
   use Mix.Project
 
-  @version "0.2.3"
+  @version "0.3.0"
   def get_version, do: @version
 
   def project do

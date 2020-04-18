@@ -1,5 +1,10 @@
 defmodule Mine do
-  defmacro __using__(_opts) do
+  defmacro __using__(opts) do
+    only =
+      opts
+      |> Keyword.get(:only)
+      |> resolve_only()
+
     quote do
       import Mine, only: [defview: 1, defview: 2, default_view: 1]
 
@@ -7,6 +12,7 @@ defmodule Mine do
       @mine_default_view :default
       @mine_views %{}
       @mine_current_name nil
+      @mine_only unquote(only)
 
       Module.register_attribute(__MODULE__, :mine_name, accumulate: false)
       Module.register_attribute(__MODULE__, :mine_names, accumulate: true)
@@ -17,8 +23,13 @@ defmodule Mine do
       def __mine__(:names), do: Module.get_attribute(__MODULE__, :mine_names)
       defoverridable __mine__: 1
 
-      def to_view(struct, name \\ __MODULE__.__mine__(:default_view))
-      def from_view(source, name \\ __MODULE__.__mine__(:default_view))
+      if Enum.member?(@mine_only, :to_view) do
+        def to_view(struct, name \\ __MODULE__.__mine__(:default_view))
+      end
+
+      if Enum.member?(@mine_only, :from_view) do
+        def from_view(source, name \\ __MODULE__.__mine__(:default_view))
+      end
     end
   end
 
@@ -26,8 +37,8 @@ defmodule Mine do
   Used to specify the requirements for generating `to_view` and `from_view` functions
   on a module.
 
-  Within the scope of this macro, `Mine.alias_field/2`, `Mine.add_field/2`, and
-  `Mine.ignore_field/1` will be in scope.
+  Within the scope of this macro, `Mine.field/2`, `Mine.append/2`, and
+  `Mine.ignore/1` will be in scope.
 
   The `name` argument is a value used to identify this view when invoking the
   generated `to_view` and `from_view` functions. This defaults to, well, `:default`.
@@ -37,12 +48,15 @@ defmodule Mine do
   use `Mine.default_view/1`.
 
   Note that any fields that exist in the modules struct and are not explicitly
-  ignored with a call to `Mine.ignore_field/1` will not be ignored. This behavior
+  ignored with a call to `Mine.ignore/1` will not be ignored. This behavior
   will be configurable in the future.
   """
   defmacro defview(name \\ :default, do: body) do
     prelude =
-      quote bind_quoted: [name: name], unquote: true do
+      quote bind_quoted: [
+              name: name
+            ],
+            unquote: true do
         Mine.validate_defview!(__MODULE__, __ENV__, name)
 
         @mine_names name
@@ -50,7 +64,7 @@ defmodule Mine do
         @mine_current_view Mine.View.new(__MODULE__, name)
 
         try do
-          import Mine, only: [alias_field: 2, add_field: 2, ignore_field: 1]
+          import Mine, only: [field: 2, append: 2, ignore: 1]
           unquote(body)
         after
           :ok
@@ -58,7 +72,9 @@ defmodule Mine do
       end
 
     postlude =
-      quote bind_quoted: [name: name] do
+      quote bind_quoted: [
+              name: name
+            ] do
         final_view =
           Module.get_attribute(__MODULE__, :mine_current_view)
           |> Mine.View.compose()
@@ -72,11 +88,18 @@ defmodule Mine do
 
         defoverridable __mine__: 1
 
-        to_view = Mine.Builder.build_to_view(__MODULE__, name, final_view)
-        from_view = Mine.Builder.build_from_view(__MODULE__, name, final_view)
+        # Optionally generate the to_view and from_view functions
 
-        Module.eval_quoted(__ENV__, to_view)
-        Module.eval_quoted(__ENV__, from_view)
+        if Enum.member?(Module.get_attribute(__MODULE__, :mine_only), :to_view) do
+          to_view = Mine.Builder.build_to_view(__MODULE__, name, final_view)
+          Module.eval_quoted(__ENV__, to_view)
+        end
+
+        if Enum.member?(Module.get_attribute(__MODULE__, :mine_only), :from_view) do
+          from_view = Mine.Builder.build_from_view(__MODULE__, name, final_view)
+          Module.eval_quoted(__ENV__, from_view)
+        end
+
         Module.delete_attribute(__MODULE__, :mine_current_view)
       end
 
@@ -104,7 +127,7 @@ defmodule Mine do
   of structs) in snake case, this can lead to code mapping field names to and
   from the external naming convention.
 
-  `alias_field/2` is a simpler way to represent this relationship.
+  `field/2` is a simpler way to represent this relationship.
 
   Options:
 
@@ -123,24 +146,24 @@ defmodule Mine do
         struct [:my_field, :foo, :to_upper]
 
         defview do
-          alias_field :my_field, as: "myField"
-          alias_field :foo, default: "bar"
-          alias_field :to_upper, map_to: &String.upcase/1
+          field :my_field, as: "myField"
+          field :foo, default: "bar"
+          field :to_upper, map_to: &String.upcase/1
         end
       end
 
       MyModule.to_view(%MyModule{my_field: 1, to_upper: "upper!"})
       # %{"myField" => 1, "foo" => "bar", "to_upper" => "UPPER!"}
   """
-  defmacro alias_field(key, opts) when is_list(opts) do
+  defmacro field(key, opts) when is_list(opts) do
     quote do
-      Mine.__alias_field__(__MODULE__, unquote(key), unquote(Macro.escape(opts)))
+      Mine.__field__(__MODULE__, unquote(key), unquote(Macro.escape(opts)))
     end
   end
 
-  defmacro alias_field(key, as) do
+  defmacro field(key, as) do
     quote do
-      Mine.__alias_field__(__MODULE__, unquote(key), as: unquote(as))
+      Mine.__field__(__MODULE__, unquote(key), as: unquote(as))
     end
   end
 
@@ -158,16 +181,16 @@ defmodule Mine do
         struct [:field]
 
         defview do
-          add_field "@class", "Some.Java.Class"
+          append "@class", "Some.Java.Class"
         end
       end
 
       MyModule.to_view(%MyModule{field: "example"})
       # %{"field" => "example", "@class" => "Some.Java.Class"}
   """
-  defmacro add_field(key, value) do
+  defmacro append(key, value) do
     quote do
-      Mine.__add_field__(__MODULE__, unquote(key), unquote(Macro.escape(value)))
+      Mine.__append__(__MODULE__, unquote(key), unquote(Macro.escape(value)))
     end
   end
 
@@ -182,7 +205,7 @@ defmodule Mine do
         struct [:public, :private]
 
         defview do
-          ignore_field :private
+          ignore :private
         end
       end
 
@@ -192,12 +215,12 @@ defmodule Mine do
       MyModule.from_view(%{"public" => "hello", "private" => "world"})
       # %MyModule{public: "hello"}
 
-  A field that has been declared as ignored cannot be used in `Mine.alias_field/2` and
+  A field that has been declared as ignored cannot be used in `Mine.field/2` and
   vice versa. Doing so will raise an error.
   """
-  defmacro ignore_field(key) do
+  defmacro ignore(key) do
     quote do
-      Mine.__ignore_field__(__MODULE__, unquote(key))
+      Mine.__ignore__(__MODULE__, unquote(key))
     end
   end
 
@@ -238,7 +261,7 @@ defmodule Mine do
 
   # Macro callbacks
 
-  def __alias_field__(mod, key, opts) when is_list(opts) do
+  def __field__(mod, key, opts) when is_list(opts) do
     # ensure :as has a value
     opts = Keyword.put_new_lazy(opts, :as, fn -> Atom.to_string(key) end)
 
@@ -247,13 +270,13 @@ defmodule Mine do
     |> handle_view_update(mod, key)
   end
 
-  def __add_field__(mod, key, value) do
+  def __append__(mod, key, value) do
     current_view(mod)
     |> Mine.View.add_additional_field(key, value)
     |> handle_view_update(mod, key)
   end
 
-  def __ignore_field__(mod, key) do
+  def __ignore__(mod, key) do
     current_view(mod)
     |> Mine.View.add_ignored_field(key)
     |> handle_view_update(mod, key)
@@ -351,4 +374,9 @@ defmodule Mine do
         """
     end
   end
+
+  defp resolve_only(list) when is_list(list), do: list
+  defp resolve_only(:to_view), do: [:to_view]
+  defp resolve_only(:from_view), do: [:from_view]
+  defp resolve_only(_), do: [:to_view, :from_view]
 end

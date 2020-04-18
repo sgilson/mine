@@ -12,15 +12,15 @@ defmodule MineTest do
       default_view(:api)
 
       defview :api do
-        alias_field(:email, as: "contact", default: "?")
-        ignore_field(:pass)
-        add_field("@class", "Some.Java.class")
+        field(:email, as: "contact", default: "?")
+        ignore(:pass)
+        append("@class", "Some.Java.class")
       end
 
       defview :short do
-        ignore_field(:pass)
-        ignore_field(:email)
-        alias_field(:name, default: "Joe")
+        ignore(:pass)
+        ignore(:email)
+        field(:name, default: "Joe")
       end
     end
 
@@ -72,7 +72,7 @@ defmodule MineTest do
       assert Map.has_key?(view, "@class")
     end
 
-    test "alias_field will use field name if :as is missing" do
+    test "field will use field name if :as is missing" do
       struct = %BasicUser{
         email: "abc@d.com",
         pass: "secret!"
@@ -98,7 +98,7 @@ defmodule MineTest do
       end
 
       defview do
-        alias_field(
+        field(
           :name,
           as: "full_name",
           map_to: &join_name/1,
@@ -112,7 +112,7 @@ defmodule MineTest do
       defstruct [:sender]
 
       defview do
-        alias_field(
+        field(
           :sender,
           map_to: &MappedUser.to_view/1,
           map_from: &MappedUser.from_view/1
@@ -165,30 +165,30 @@ defmodule MineTest do
 
   test "using macros outside defview/1" do
     assert_compiler_raise(
-      ~r/(undefined function alias_field)/i,
+      ~r/(undefined function field)/i,
       CompileError,
       defmodule MisplacedAliasField do
         use Mine
         defstruct [:name, :pass]
 
-        alias_field(:name, "username")
+        field(:name, "username")
       end
     )
   end
 
   test "using macros after defview/1" do
     assert_compiler_raise(
-      ~r/(undefined function ignore_field)/i,
+      ~r/(undefined function ignore)/i,
       CompileError,
       defmodule ExtraIgnoreField do
         use Mine
         defstruct [:name, :pass]
 
         defview :api do
-          alias_field(:name, "name")
+          field(:name, "name")
         end
 
-        ignore_field(:name)
+        ignore(:name)
       end
     )
   end
@@ -201,7 +201,7 @@ defmodule MineTest do
         defstruct [:field]
 
         defview do
-          alias_field(:field, 1)
+          field(:field, 1)
         end
       end
     )
@@ -215,7 +215,7 @@ defmodule MineTest do
         use Mine
 
         defview :api do
-          alias_field(:name, "name")
+          field(:name, "name")
         end
       end
     )
@@ -229,7 +229,7 @@ defmodule MineTest do
         use Mine
 
         defview :api do
-          alias_field(:name, "name")
+          field(:name, "name")
         end
 
         defstruct [:name]
@@ -247,7 +247,7 @@ defmodule MineTest do
         default_view(:api)
 
         defview do
-          alias_field(:name, "name")
+          field(:name, "name")
         end
       end
     )
@@ -263,7 +263,7 @@ defmodule MineTest do
         default_view(:api)
 
         defview do
-          alias_field(:nombre, "name")
+          field(:nombre, "name")
         end
       end
     )
@@ -277,8 +277,8 @@ defmodule MineTest do
         defstruct [:name]
 
         defview do
-          alias_field(:name, "a")
-          alias_field(:name, "b")
+          field(:name, "a")
+          field(:name, "b")
         end
       end
     )
@@ -293,7 +293,7 @@ defmodule MineTest do
         defstruct [:name]
 
         defview 1 do
-          alias_field(:name, "a")
+          field(:name, "a")
         end
       end
     )
@@ -308,8 +308,8 @@ defmodule MineTest do
         defstruct [:name]
 
         defview do
-          alias_field(:name, "a")
-          ignore_field(:name)
+          field(:name, "a")
+          ignore(:name)
         end
       end
     )
@@ -326,24 +326,24 @@ defmodule MineTest do
         default_view(:api)
 
         defview :api do
-          alias_field(:name, "a")
+          field(:name, "a")
         end
 
         defview :api do
-          alias_field(:name, as: "b")
+          field(:name, as: "b")
         end
       end
     )
   end
 
-  test "can use complex values in add_field" do
+  test "can use complex values in append" do
     assert_compiles(
       defmodule ComplexAddField do
         use Mine
         defstruct [:field]
 
         defview do
-          add_field("field2", %{"hello" => :world})
+          append("field2", %{"hello" => :world})
         end
       end
     )
@@ -358,7 +358,7 @@ defmodule MineTest do
         defp identity(x), do: x
 
         defview do
-          alias_field(:field, map_to: &identity/1)
+          field(:field, map_to: &identity/1)
         end
       end
     )
@@ -371,7 +371,7 @@ defmodule MineTest do
         defstruct [:field]
 
         defview do
-          alias_field(:field, map_to: fn x -> x end)
+          field(:field, map_to: fn x -> x end)
         end
       end
     )
@@ -386,7 +386,7 @@ defmodule MineTest do
         def identity(x), do: x
 
         defview do
-          alias_field(:field, map_to: &identity(&1))
+          field(:field, map_to: &identity(&1))
         end
       end
     )
@@ -400,7 +400,7 @@ defmodule MineTest do
         defstruct [:field]
 
         defview do
-          alias_field(:field, map_to: &upcase/1)
+          field(:field, map_to: &upcase/1)
         end
       end
     )
@@ -415,7 +415,7 @@ defmodule MineTest do
         defstruct [:name]
 
         defview do
-          alias_field(:name, as: "Name", map_from: 1)
+          field(:name, as: "Name", map_from: 1)
         end
       end
     )
@@ -430,7 +430,7 @@ defmodule MineTest do
         defstruct [:name]
 
         defview do
-          alias_field(:name, as: "Name", map_to: 1)
+          field(:name, as: "Name", map_to: 1)
         end
       end
     )
@@ -446,10 +446,10 @@ defmodule MineTest do
         defstruct [:name]
 
         defview do
-          alias_field(:name, as: "Name", map_to: 1)
+          field(:name, as: "Name", map_to: 1)
 
           defview :nested do
-            alias_field(:name, as: "Name", map_to: 1)
+            field(:name, as: "Name", map_to: 1)
           end
         end
       end
@@ -464,7 +464,7 @@ defmodule MineTest do
         defstruct [:name]
 
         defview do
-          alias_field(:name, as: "Name")
+          field(:name, as: "Name")
         end
 
         def to_view(nil, :default), do: to_view(%Override{name: nil})
@@ -475,6 +475,43 @@ defmodule MineTest do
     test "can use overridden functions" do
       assert Override.to_view(nil, :default) == %{"Name" => nil}
       assert Override.from_view(nil, :default) == %Override{name: nil}
+    end
+  end
+
+  describe "limiting generated functions" do
+    assert_compiles(
+      defmodule UsingOnlyOne do
+        use Mine, only: :from_view
+
+        defstruct [:name]
+
+        defview do
+          field(:name, as: "NAME")
+        end
+      end
+    )
+
+    test "to_view function was not generated" do
+      refute Enum.member?(UsingOnlyOne.__info__(:functions), {:to_view, 1})
+      refute Enum.member?(UsingOnlyOne.__info__(:functions), {:to_view, 2})
+    end
+
+    assert_compiles(
+      defmodule UsingOnlyList do
+        # using a list this time
+        use Mine, only: [:to_view]
+
+        defstruct [:name]
+
+        defview do
+          field(:name, as: "NAME")
+        end
+      end
+    )
+
+    test "from function was not generated" do
+      refute Enum.member?(UsingOnlyList.__info__(:functions), {:from_view, 1})
+      refute Enum.member?(UsingOnlyList.__info__(:functions), {:from_view, 2})
     end
   end
 end
