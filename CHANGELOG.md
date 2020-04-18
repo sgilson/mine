@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.3.0
+
+### Breaking Change
+- Renaming functions to be more concise. `alias_field` -> `field`, `add_field` ->
+  `append`, `ignore_field` -> `ignore`. Larger structs made the verbosity of the
+  previous method names obvious. I apologize for the breaking change, but I think
+  this new language will be more concise.
+
 ## v0.2.3
 
 ### Improvements

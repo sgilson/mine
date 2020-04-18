@@ -26,8 +26,8 @@ defmodule Mine do
   Used to specify the requirements for generating `to_view` and `from_view` functions
   on a module.
 
-  Within the scope of this macro, `Mine.alias_field/2`, `Mine.add_field/2`, and
-  `Mine.ignore_field/1` will be in scope.
+  Within the scope of this macro, `Mine.field/2`, `Mine.append/2`, and
+  `Mine.ignore/1` will be in scope.
 
   The `name` argument is a value used to identify this view when invoking the
   generated `to_view` and `from_view` functions. This defaults to, well, `:default`.
@@ -37,7 +37,7 @@ defmodule Mine do
   use `Mine.default_view/1`.
 
   Note that any fields that exist in the modules struct and are not explicitly
-  ignored with a call to `Mine.ignore_field/1` will not be ignored. This behavior
+  ignored with a call to `Mine.ignore/1` will not be ignored. This behavior
   will be configurable in the future.
   """
   defmacro defview(name \\ :default, do: body) do
@@ -50,7 +50,7 @@ defmodule Mine do
         @mine_current_view Mine.View.new(__MODULE__, name)
 
         try do
-          import Mine, only: [alias_field: 2, add_field: 2, ignore_field: 1]
+          import Mine, only: [field: 2, append: 2, ignore: 1]
           unquote(body)
         after
           :ok
@@ -104,7 +104,7 @@ defmodule Mine do
   of structs) in snake case, this can lead to code mapping field names to and
   from the external naming convention.
 
-  `alias_field/2` is a simpler way to represent this relationship.
+  `field/2` is a simpler way to represent this relationship.
 
   Options:
 
@@ -123,24 +123,24 @@ defmodule Mine do
         struct [:my_field, :foo, :to_upper]
 
         defview do
-          alias_field :my_field, as: "myField"
-          alias_field :foo, default: "bar"
-          alias_field :to_upper, map_to: &String.upcase/1
+          field :my_field, as: "myField"
+          field :foo, default: "bar"
+          field :to_upper, map_to: &String.upcase/1
         end
       end
 
       MyModule.to_view(%MyModule{my_field: 1, to_upper: "upper!"})
       # %{"myField" => 1, "foo" => "bar", "to_upper" => "UPPER!"}
   """
-  defmacro alias_field(key, opts) when is_list(opts) do
+  defmacro field(key, opts) when is_list(opts) do
     quote do
-      Mine.__alias_field__(__MODULE__, unquote(key), unquote(Macro.escape(opts)))
+      Mine.__field__(__MODULE__, unquote(key), unquote(Macro.escape(opts)))
     end
   end
 
-  defmacro alias_field(key, as) do
+  defmacro field(key, as) do
     quote do
-      Mine.__alias_field__(__MODULE__, unquote(key), as: unquote(as))
+      Mine.__field__(__MODULE__, unquote(key), as: unquote(as))
     end
   end
 
@@ -158,16 +158,16 @@ defmodule Mine do
         struct [:field]
 
         defview do
-          add_field "@class", "Some.Java.Class"
+          append "@class", "Some.Java.Class"
         end
       end
 
       MyModule.to_view(%MyModule{field: "example"})
       # %{"field" => "example", "@class" => "Some.Java.Class"}
   """
-  defmacro add_field(key, value) do
+  defmacro append(key, value) do
     quote do
-      Mine.__add_field__(__MODULE__, unquote(key), unquote(Macro.escape(value)))
+      Mine.__append__(__MODULE__, unquote(key), unquote(Macro.escape(value)))
     end
   end
 
@@ -182,7 +182,7 @@ defmodule Mine do
         struct [:public, :private]
 
         defview do
-          ignore_field :private
+          ignore :private
         end
       end
 
@@ -192,12 +192,12 @@ defmodule Mine do
       MyModule.from_view(%{"public" => "hello", "private" => "world"})
       # %MyModule{public: "hello"}
 
-  A field that has been declared as ignored cannot be used in `Mine.alias_field/2` and
+  A field that has been declared as ignored cannot be used in `Mine.field/2` and
   vice versa. Doing so will raise an error.
   """
-  defmacro ignore_field(key) do
+  defmacro ignore(key) do
     quote do
-      Mine.__ignore_field__(__MODULE__, unquote(key))
+      Mine.__ignore__(__MODULE__, unquote(key))
     end
   end
 
@@ -238,7 +238,7 @@ defmodule Mine do
 
   # Macro callbacks
 
-  def __alias_field__(mod, key, opts) when is_list(opts) do
+  def __field__(mod, key, opts) when is_list(opts) do
     # ensure :as has a value
     opts = Keyword.put_new_lazy(opts, :as, fn -> Atom.to_string(key) end)
 
@@ -247,13 +247,13 @@ defmodule Mine do
     |> handle_view_update(mod, key)
   end
 
-  def __add_field__(mod, key, value) do
+  def __append__(mod, key, value) do
     current_view(mod)
     |> Mine.View.add_additional_field(key, value)
     |> handle_view_update(mod, key)
   end
 
-  def __ignore_field__(mod, key) do
+  def __ignore__(mod, key) do
     current_view(mod)
     |> Mine.View.add_ignored_field(key)
     |> handle_view_update(mod, key)
