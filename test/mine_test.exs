@@ -477,4 +477,41 @@ defmodule MineTest do
       assert Override.from_view(nil, :default) == %Override{name: nil}
     end
   end
+
+  describe "limiting generated functions" do
+    assert_compiles(
+      defmodule UsingOnlyOne do
+        use Mine, only: :from_view
+
+        defstruct [:name]
+
+        defview do
+          field(:name, as: "NAME")
+        end
+      end
+    )
+
+    test "to_view function was not generated" do
+      refute Enum.member?(UsingOnlyOne.__info__(:functions), {:to_view, 1})
+      refute Enum.member?(UsingOnlyOne.__info__(:functions), {:to_view, 2})
+    end
+
+    assert_compiles(
+      defmodule UsingOnlyList do
+        # using a list this time
+        use Mine, only: [:to_view]
+
+        defstruct [:name]
+
+        defview do
+          field(:name, as: "NAME")
+        end
+      end
+    )
+
+    test "from function was not generated" do
+      refute Enum.member?(UsingOnlyList.__info__(:functions), {:from_view, 1})
+      refute Enum.member?(UsingOnlyList.__info__(:functions), {:from_view, 2})
+    end
+  end
 end

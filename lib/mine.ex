@@ -1,5 +1,10 @@
 defmodule Mine do
-  defmacro __using__(_opts) do
+  defmacro __using__(opts) do
+    only =
+      opts
+      |> Keyword.get(:only)
+      |> resolve_only()
+
     quote do
       import Mine, only: [defview: 1, defview: 2, default_view: 1]
 
@@ -7,6 +12,7 @@ defmodule Mine do
       @mine_default_view :default
       @mine_views %{}
       @mine_current_name nil
+      @mine_only unquote(only)
 
       Module.register_attribute(__MODULE__, :mine_name, accumulate: false)
       Module.register_attribute(__MODULE__, :mine_names, accumulate: true)
@@ -17,8 +23,13 @@ defmodule Mine do
       def __mine__(:names), do: Module.get_attribute(__MODULE__, :mine_names)
       defoverridable __mine__: 1
 
-      def to_view(struct, name \\ __MODULE__.__mine__(:default_view))
-      def from_view(source, name \\ __MODULE__.__mine__(:default_view))
+      if Enum.member?(@mine_only, :to_view) do
+        def to_view(struct, name \\ __MODULE__.__mine__(:default_view))
+      end
+
+      if Enum.member?(@mine_only, :from_view) do
+        def from_view(source, name \\ __MODULE__.__mine__(:default_view))
+      end
     end
   end
 
@@ -42,7 +53,10 @@ defmodule Mine do
   """
   defmacro defview(name \\ :default, do: body) do
     prelude =
-      quote bind_quoted: [name: name], unquote: true do
+      quote bind_quoted: [
+              name: name
+            ],
+            unquote: true do
         Mine.validate_defview!(__MODULE__, __ENV__, name)
 
         @mine_names name
@@ -58,7 +72,9 @@ defmodule Mine do
       end
 
     postlude =
-      quote bind_quoted: [name: name] do
+      quote bind_quoted: [
+              name: name
+            ] do
         final_view =
           Module.get_attribute(__MODULE__, :mine_current_view)
           |> Mine.View.compose()
@@ -72,11 +88,18 @@ defmodule Mine do
 
         defoverridable __mine__: 1
 
-        to_view = Mine.Builder.build_to_view(__MODULE__, name, final_view)
-        from_view = Mine.Builder.build_from_view(__MODULE__, name, final_view)
+        # Optionally generate the to_view and from_view functions
 
-        Module.eval_quoted(__ENV__, to_view)
-        Module.eval_quoted(__ENV__, from_view)
+        if Enum.member?(Module.get_attribute(__MODULE__, :mine_only), :to_view) do
+          to_view = Mine.Builder.build_to_view(__MODULE__, name, final_view)
+          Module.eval_quoted(__ENV__, to_view)
+        end
+
+        if Enum.member?(Module.get_attribute(__MODULE__, :mine_only), :from_view) do
+          from_view = Mine.Builder.build_from_view(__MODULE__, name, final_view)
+          Module.eval_quoted(__ENV__, from_view)
+        end
+
         Module.delete_attribute(__MODULE__, :mine_current_view)
       end
 
@@ -351,4 +374,9 @@ defmodule Mine do
         """
     end
   end
+
+  defp resolve_only(list) when is_list(list), do: list
+  defp resolve_only(:to_view), do: [:to_view]
+  defp resolve_only(:from_view), do: [:from_view]
+  defp resolve_only(_), do: [:to_view, :from_view]
 end
