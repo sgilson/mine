@@ -26,8 +26,8 @@ defmodule User do
   defstruct [:name, :email, :password]
   
   defview do
-    alias_field :name, as: "userName", default: ""
-    ignore_field :password
+    field :name, as: "userName", default: ""
+    ignore :password
   end
 end
 ```
@@ -72,18 +72,18 @@ More info on these functions can be found on HexDocs.
 
 There are several macros that can be used inside the scope of `defview`. They are:
 
-- `alias_field/2`: Change the key for a given field. Has the following uses:
-     - `alias_field(:key, "as")` View will use `"as"` instead of the field name `:key`
-     - `alias_field(:key, default: "def")` Same as above, but if `:key` is
+- `field/2`: Change the key for a given field. Has the following uses:
+     - `field(:key, "as")` View will use `"as"` instead of the field name `:key`
+     - `field(:key, default: "def")` Same as above, but if `:key` is
      not found or it's value is `nil`, `"def"` will be used as the value instead.
-     - `alias_field(:key, map_to: &String.upcase/1)` When using `to_view`,
+     - `field(:key, map_to: &String.upcase/1)` When using `to_view`,
      value of field in struct will be accessed, mapped using `map_to`, and stored 
      under the key `"as"` in the resulting map
-     - `alias_field(:key, map_from: &String.downcase/1)` When using 
+     - `field(:key, map_from: &String.downcase/1)` When using 
      `from_view`, value of `"as"` in the given map will be fetched and passed
      as the only argument to the function in `map_from`.
-- `ignore_field/1`: Field will be ignored in both `to_view` and from `from_view`.
-- `add_field/2`: A key value pair that will be added to any map produced by `to_view`.
+- `ignore/1`: Field will be ignored in both `to_view` and from `from_view`.
+- `append/2`: A key value pair that will be added to any map produced by `to_view`.
 Ignored in `from_view`.
 
 ### Named Views
@@ -106,13 +106,13 @@ default_view :front_end
 
 # other fields will remain untouched
 defview :third_party_api do
-  alias_field :name, as: "userName"
+  field :name, as: "userName"
 end
 
 defview :front_end do
-  alias_field :name, default: "?"
-  alias_field :email, default: "unknown"
-  ignore_field :password
+  field :name, default: "?"
+  field :email, default: "unknown"
+  ignore :password
 end
 
 ...
@@ -170,8 +170,8 @@ defmodule Port do
   defstruct [:num, :enabled]
 
   defview do
-    alias_field :num, "$"
-    alias_field :enabled, "@enabled"
+    field :num, "$"
+    field :enabled, "@enabled"
   end
 end
 ```
@@ -187,7 +187,7 @@ Mine can be installed by adding `mine` to your list of dependencies in `mix.exs`
 ```elixir
 def deps do
   [
-    {:mine, "~> 0.2.3"}
+    {:mine, "~> 0.3.0"}
   ]
 end
 ```
