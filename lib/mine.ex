@@ -438,7 +438,7 @@ defmodule Mine do
       {attribute, Module.delete_attribute(mod, attribute)}
     end
   end
-
+  
   defp resolve_only(list) when is_list(list), do: list
   defp resolve_only(:to_view), do: [:to_view]
   defp resolve_only(:from_view), do: [:from_view]
