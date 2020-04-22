@@ -7,14 +7,23 @@ defmodule Mine.View do
   @type alias_map :: %{Mine.key() => Alias.t()}
   @type additional_fields :: %{Mine.key() => any}
   @type ignored_fields :: %{Mine.key() => boolean}
+  @type exclude_if_fn :: nil | (any -> boolean)
   @type t :: %__MODULE__{
           name: Mine.key(),
           struct_aliases: struct_aliases,
           aliases: alias_map,
           additional: additional_fields,
-          ignored: ignored_fields
+          ignored: ignored_fields,
+          exclude_if_fn: exclude_if_fn
         }
-  defstruct [:name, :struct_aliases, aliases: %{}, additional: %{}, ignored: %{}]
+  defstruct [
+    :name,
+    :struct_aliases,
+    aliases: %{},
+    additional: %{},
+    ignored: %{},
+    exclude_if_fn: nil
+  ]
 
   def new(module, view_name) do
     %__MODULE__{name: view_name, struct_aliases: struct_aliases(module)}
@@ -39,6 +48,12 @@ defmodule Mine.View do
     end
   end
 
+  def set_exclude_if(view = %__MODULE__{}, exclude_if) do
+    with {:ok, exclude_if} <- validate_exclude_if(exclude_if) do
+      {:ok, %{view | exclude_if_fn: exclude_if}}
+    end
+  end
+
   def compose(view) do
     %__MODULE__{
       struct_aliases: struct_aliases,
@@ -47,11 +62,14 @@ defmodule Mine.View do
       ignored: ignored
     } = view
 
-    struct_aliases
-    |> Map.merge(aliases, &Alias.merge/3)
-    |> Map.merge(additional)
-    |> Map.drop(Map.keys(ignored))
-    |> Enum.into(%{})
+    result =
+      struct_aliases
+      |> Map.merge(aliases, &Alias.merge/3)
+      |> Map.merge(additional)
+      |> Map.drop(Map.keys(ignored))
+      |> Enum.into(%{})
+
+    {result, view}
   end
 
   defp check_key(view, key, enforce_in_struct \\ true) do
@@ -89,4 +107,27 @@ defmodule Mine.View do
   defp put_ignored(struct = %__MODULE__{ignored: ignored}, key) do
     Map.replace!(struct, :ignored, Map.put(ignored, key, true))
   end
+
+  defp validate_exclude_if(nil), do: {:ok, nil}
+  defp validate_exclude_if(:is_nil), do: {:ok, &Mine.View.is_nil/1}
+  defp validate_exclude_if(:is_blank), do: {:ok, &Mine.View.is_blank/1}
+
+  defp validate_exclude_if(func) when is_function(func, 1) do
+    try do
+      Macro.escape(func)
+    rescue
+      _ in ArgumentError -> {:error, {:invalid_exclude_if, func}}
+    end
+  end
+
+  defp validate_exclude_if(other), do: {:error, {:invalid_exclude_if, other}}
+
+  @doc false
+  def is_blank(nil), do: true
+  def is_blank(""), do: true
+  def is_blank(_), do: false
+
+  @doc false
+  def is_nil(nil), do: true
+  def is_nil(_), do: false
 end

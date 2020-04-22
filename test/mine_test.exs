@@ -514,4 +514,100 @@ defmodule MineTest do
       refute Enum.member?(UsingOnlyList.__info__(:functions), {:from_view, 2})
     end
   end
+
+  describe "@default_view" do
+    defmodule DefaultViewAttributeExplicit do
+      use Mine
+
+      defstruct [:field]
+
+      @default_view :first
+      defview :first do
+      end
+    end
+
+    test "explicit value works" do
+      assert DefaultViewAttributeExplicit.__mine__(:default_view) == :first
+    end
+
+    defmodule DefaultViewAttributeImplicit do
+      use Mine
+
+      defstruct [:field]
+
+      @default_view true
+      defview :first do
+        field(:field, as: "FIELD")
+      end
+    end
+
+    test "implicit value works" do
+      assert DefaultViewAttributeExplicit.__mine__(:default_view) == :first
+    end
+  end
+
+  describe "exclude_if" do
+    assert_compiles(
+      defmodule ExcludeIf do
+        use Mine
+
+        defstruct [:exclude, :include]
+
+        default_view(:is_nil_function)
+
+        @default_view true
+        @exclude_if :is_nil
+        defview :is_nil_atom do
+        end
+
+        @exclude_if :is_blank
+        defview :is_blank_atom do
+        end
+      end
+    )
+
+    test "is_nil atom" do
+      struct = %ExcludeIf{exclude: nil, include: 1}
+
+      assert %{"include" => 1} == ExcludeIf.to_view(struct, :is_nil_atom)
+    end
+
+    test "is_blank atom" do
+      struct1 = %ExcludeIf{exclude: nil, include: 1}
+      struct2 = %ExcludeIf{exclude: "", include: 1}
+
+      assert %{"include" => 1} == ExcludeIf.to_view(struct1, :is_blank_atom)
+      assert %{"include" => 1} == ExcludeIf.to_view(struct2, :is_blank_atom)
+    end
+
+    test "exclude_if must be recognized" do
+      assert_compiler_raise(
+        ~r/(should be a remote function)/,
+        defmodule BadExcludeIfNumber do
+          use Mine
+
+          defstruct [:trash]
+
+          @exclude_if 1
+          defview do
+          end
+        end
+      )
+    end
+
+    test "compile error when referencing remote macro" do
+      assert_compiler_raise(
+        ~r/(should be a remote function)/,
+        defmodule BadExcludeIfMacro do
+          use Mine
+
+          defstruct [:trash]
+
+          @exclude_if &is_nil/1
+          defview do
+          end
+        end
+      )
+    end
+  end
 end
