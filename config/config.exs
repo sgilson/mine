@@ -1,6 +1,6 @@
 import Mix.Config
 
-if Mix.env() != :prod do
+unless Mix.env() in [:prod, :bench] do
   config :git_hooks,
     verbose: true,
     hooks: [

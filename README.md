@@ -115,6 +115,12 @@ defview :front_end do
   ignore :password
 end
 
+# alternatively, use the @default_view annotation
+@default_view true
+defview :front_end do
+  # ...
+end
+
 ...
 ```
 
@@ -199,7 +205,7 @@ Mine can be installed by adding `mine` to your list of dependencies in `mix.exs`
 ```elixir
 def deps do
   [
-    {:mine, "~> 0.3.0"}
+    {:mine, "~> 0.3.1"}
   ]
 end
 ```

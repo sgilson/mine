@@ -8,13 +8,25 @@ defmodule Mine.Builder do
 
   # building to_view
 
-  def build_to_view(module, view_name, view) do
+  def build_to_view(module, %Mine.View{name: view_name, exclude_if_fn: exclude_if}, view) do
     quote do
       def to_view(
             %unquote(module){unquote_splicing(match_aliased_keys(module, view))},
             unquote(view_name)
           ) do
-        %{unquote_splicing(build_map_body_ast(module, view))}
+        unquote(Mine.Builder.to_view_body(module, view, exclude_if))
+      end
+    end
+  end
+
+  def to_view_body(module, view, exclude_if) do
+    if is_nil(exclude_if) do
+      quote(do: %{unquote_splicing(build_map_body_ast(module, view))})
+    else
+      quote do
+        :maps.filter(fn _, v -> not unquote(exclude_if).(v) end, %{
+          unquote_splicing(build_map_body_ast(module, view))
+        })
       end
     end
   end
@@ -56,7 +68,7 @@ defmodule Mine.Builder do
 
   # building from_view
 
-  def build_from_view(module, view_name, view) do
+  def build_from_view(module, %Mine.View{name: view_name}, view) do
     source_var = var(:source, module)
 
     quote do

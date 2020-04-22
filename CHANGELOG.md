@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.3.1
+
+### Improvements
+
+- Addition of two annotations: `@default_view` and `@exclude_if`. `@exclude_if` should
+  be passed a predicate that take a value from a map produced using `to_view` and 
+  returns true if the key/value pair should be excluded. Convenience for removing 
+  empty and nil values from a view if needed.
+
 ## v0.3.0
 
 ### Breaking Change

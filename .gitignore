@@ -9,3 +9,5 @@ erl_crash.dump
 /config/*.secret.exs
 /.idea
 *.iml
+/.elixir_ls
+launch.json

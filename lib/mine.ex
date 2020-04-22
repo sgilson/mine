@@ -49,19 +49,29 @@ defmodule Mine do
 
   Note that any fields that exist in the modules struct and are not explicitly
   ignored with a call to `Mine.ignore/1` will not be ignored. This behavior
-  will be configurable in the future.
+  may be configurable in the future.
+
+  Annotations can be placed before `defview` to augment the view.
+
+  - `@default_view`: if passed `true`, indicates that the following view should be the
+    default. It can also be passed the name of a view, similar to `Mine.default_view/1`.
+  - `@exclude_if`: should be passed a function with arity 1 that returns `true` or `false`.
+    Used to filter values maps resulting from a call to `to_view`. This is useful for when
+    empty fields should not be included in the final data representation. Two helper
+    functions can be referenced using atoms: `:is_nil` (entries whose values are nil will be
+    filtered out), and `:is_blank` (entries whose values are nil or an empty string are removed).
   """
   defmacro defview(name \\ :default, do: body) do
     prelude =
-      quote bind_quoted: [
-              name: name
-            ],
+      quote bind_quoted: [name: name],
             unquote: true do
         Mine.validate_defview!(__MODULE__, __ENV__, name)
 
         @mine_names name
         @mine_current_name name
         @mine_current_view Mine.View.new(__MODULE__, name)
+
+        Mine.handle_attributes!(__MODULE__, name)
 
         try do
           import Mine, only: [field: 2, append: 2, ignore: 1]
@@ -75,7 +85,7 @@ defmodule Mine do
       quote bind_quoted: [
               name: name
             ] do
-        final_view =
+        {composed_view, view} =
           Module.get_attribute(__MODULE__, :mine_current_view)
           |> Mine.View.compose()
 
@@ -84,19 +94,19 @@ defmodule Mine do
 
         def __mine__(:default_view), do: unquote(default_view)
         def __mine__(:names), do: unquote(Macro.escape(names))
-        def __mine__({:view, unquote(name)}), do: unquote(Macro.escape(final_view))
+        def __mine__({:view, unquote(name)}), do: unquote(Macro.escape(composed_view))
 
         defoverridable __mine__: 1
 
         # Optionally generate the to_view and from_view functions
 
         if Enum.member?(Module.get_attribute(__MODULE__, :mine_only), :to_view) do
-          to_view = Mine.Builder.build_to_view(__MODULE__, name, final_view)
+          to_view = Mine.Builder.build_to_view(__MODULE__, view, composed_view)
           Module.eval_quoted(__ENV__, to_view)
         end
 
         if Enum.member?(Module.get_attribute(__MODULE__, :mine_only), :from_view) do
-          from_view = Mine.Builder.build_from_view(__MODULE__, name, final_view)
+          from_view = Mine.Builder.build_from_view(__MODULE__, view, composed_view)
           Module.eval_quoted(__ENV__, from_view)
         end
 
@@ -286,6 +296,12 @@ defmodule Mine do
     Module.put_attribute(mod, :mine_default_view, name)
   end
 
+  def __set_exclude_if__(mod, exclude_if) do
+    current_view(mod)
+    |> Mine.View.set_exclude_if(exclude_if)
+    |> handle_view_update(mod, :exclude_if)
+  end
+
   defp handle_view_update(res, mod, key) do
     msg =
       case res do
@@ -300,6 +316,15 @@ defmodule Mine do
 
         {:error, {:not_a_function, val}} ->
           "#{inspect(val)} should be a function"
+
+        {:error, {:invalid_exclude_if, invalid}} ->
+          """
+          #{inspect(invalid)} should be a remote function in the format &Mod.fun/1
+
+          Valid shortcuts include: :is_nil, :is_blank
+
+          Note: anonymous functions and remote macros are not supportable as of Elixir 1.9
+          """
 
         {:ok, view} ->
           update_current_view(mod, view)
@@ -368,10 +393,49 @@ defmodule Mine do
         message: """
         Default view is set to #{inspect(default_name)}, but this view does not exist.
 
-        To set the default view, use the set_default_view/1 macro.
+        To set the default view, use the default_view/1 macro.
 
-        Alternatively, modules that only use defview/1 once may omit a view name.
+        Alternatively, you can annotate a view with `@default_view true`.
+
+        Modules that only use defview/1 once may omit a view name.
         """
+    end
+  end
+
+  def handle_attributes!(mod, view_name) do
+    mod
+    |> pop_attributes()
+    |> handle_default_view_attr!(mod, view_name)
+    |> handle_exclude_if_attr!(mod)
+  end
+
+  defp handle_default_view_attr!(attributes, mod, view_name) do
+    {default_view, next} = Keyword.pop(attributes, :default_view, false)
+
+    default =
+      case default_view do
+        false -> false
+        true -> view_name
+        val -> val
+      end
+
+    if default, do: __set_default_view__(mod, default)
+
+    next
+  end
+
+  defp handle_exclude_if_attr!(attributes, mod) do
+    {exclude_if, next} = Keyword.pop(attributes, :exclude_if)
+
+    __set_exclude_if__(mod, exclude_if)
+
+    next
+  end
+
+  @config_attributes [:default_view, :exclude_if]
+  defp pop_attributes(mod) do
+    for attribute <- @config_attributes, into: [] do
+      {attribute, Module.delete_attribute(mod, attribute)}
     end
   end
 

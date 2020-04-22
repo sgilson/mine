@@ -38,8 +38,8 @@ defmodule Port.Mine do
   defstruct [:num, :enabled]
 
   defview do
-    alias_field :num, as: "$", default: 3000
-    alias_field :enabled, "@enabled"
+    field :num, as: "$", default: 3000
+    field :enabled, "@enabled"
   end
 end
 
