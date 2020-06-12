@@ -610,4 +610,52 @@ defmodule MineTest do
       )
     end
   end
+
+  describe "key mapping" do
+    defmodule CamelizedKeys do
+      use Mine
+
+      defstruct [
+        :key_one,
+        :key_two
+      ]
+
+      @naming_strategy :camel
+      defview do
+        field(:key_one, "key.one")
+      end
+
+      defview :untouched do
+      end
+    end
+
+    test "unmapped keys are camelized" do
+      struct = %CamelizedKeys{key_one: 1, key_two: 2}
+      exp = %{"key.one" => 1, "keyTwo" => 2}
+
+      assert exp == CamelizedKeys.to_view(struct)
+      assert struct == CamelizedKeys.from_view(exp)
+    end
+
+    test "other structs are not effected" do
+      struct = %CamelizedKeys{key_one: 1, key_two: 2}
+
+      assert %{"key_one" => 1, "key_two" => 2} = CamelizedKeys.to_view(struct, :untouched)
+    end
+
+    test "unknown strategy raises at compile time" do
+      assert_compiler_raise(
+        ~r/(unknown naming strategy)/i,
+        defmodule BadNamingStrategy do
+          use Mine
+
+          defstruct [:key]
+
+          @naming_strategy :bad_val
+          defview do
+          end
+        end
+      )
+    end
+  end
 end

@@ -8,13 +8,15 @@ defmodule Mine.View do
   @type additional_fields :: %{Mine.key() => any}
   @type ignored_fields :: %{Mine.key() => boolean}
   @type exclude_if_fn :: nil | (any -> boolean)
+  @type naming_strategy :: nil | (atom -> binary())
   @type t :: %__MODULE__{
           name: Mine.key(),
           struct_aliases: struct_aliases,
           aliases: alias_map,
           additional: additional_fields,
           ignored: ignored_fields,
-          exclude_if_fn: exclude_if_fn
+          exclude_if_fn: exclude_if_fn,
+          naming_strategy: naming_strategy
         }
   defstruct [
     :name,
@@ -22,7 +24,8 @@ defmodule Mine.View do
     aliases: %{},
     additional: %{},
     ignored: %{},
-    exclude_if_fn: nil
+    exclude_if_fn: nil,
+    naming_strategy: nil
   ]
 
   def new(module, view_name) do
@@ -54,22 +57,41 @@ defmodule Mine.View do
     end
   end
 
+  def set_naming_strategy(view = %__MODULE__{}, strategy) do
+    with {:ok, strategy} <- validate_naming_strategy(strategy) do
+      {:ok, %{view | naming_strategy: strategy}}
+    end
+  end
+
   def compose(view) do
     %__MODULE__{
       struct_aliases: struct_aliases,
       aliases: aliases,
       additional: additional,
-      ignored: ignored
+      ignored: ignored,
+      naming_strategy: naming_strategy
     } = view
+
+    import Map
 
     result =
       struct_aliases
-      |> Map.merge(aliases, &Alias.merge/3)
-      |> Map.merge(additional)
-      |> Map.drop(Map.keys(ignored))
+      |> apply_naming_strategy(naming_strategy)
+      |> merge(aliases, &Alias.merge/3)
+      |> merge(additional)
+      |> drop(keys(ignored))
       |> Enum.into(%{})
 
     {result, view}
+  end
+
+  defp apply_naming_strategy(aliases, nil), do: aliases
+
+  defp apply_naming_strategy(aliases, strategy) do
+    Enum.map(aliases, fn {k, a} ->
+      {k, %{a | as: strategy.(a.as)}}
+    end)
+    |> Enum.into(%{})
   end
 
   defp check_key(view, key, enforce_in_struct \\ true) do
@@ -130,4 +152,20 @@ defmodule Mine.View do
   @doc false
   def is_nil(nil), do: true
   def is_nil(_), do: false
+
+  @naming_strategy %{
+    camel: &Recase.to_camel/1,
+    constant: &Recase.to_constant/1,
+    dot: &Recase.to_dot/1,
+    kebab: &Recase.to_kebab/1,
+    pascal: &Recase.to_pascal/1,
+    path: &Recase.to_path/1
+  }
+
+  defp validate_naming_strategy(strategy) do
+    case Map.get(@naming_strategy, strategy) do
+      nil -> {:error, {:bad_naming_strategy, strategy, Map.keys(@naming_strategy)}}
+      mapper -> {:ok, mapper}
+    end
+  end
 end

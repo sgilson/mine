@@ -136,6 +136,26 @@ def to_view(%User{}, :third_party_api)
 
 With this layout, you can let pattern matching determining which view to use.
 
+## Key Naming Strategies
+
+A common requirement for views is to translate struct keys to another naming  
+convention, as snake case is not always the norm. To support this use case,
+a view can be annotated with `@naming_strategy` and by default, the generated
+aliases will use the new naming convention.
+
+```elixir
+defstruct [:field_one, :field_two]
+
+@naming_strategy :camel
+defview do
+  field :field_one, as: "something" # explicit field aliases take precedence
+end
+```
+
+Available naming strategies are: `:camel`, `:constant`, `:dot`, `:kebab`, `:pascal`, and `:path`.
+  
+Refer to [Recase](https://hexdocs.pm/recase) for details.
+
 ## Rationale
 
 While interfacing with an external API written in Java, I frequently ran across 

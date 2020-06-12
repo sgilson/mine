@@ -302,6 +302,12 @@ defmodule Mine do
     |> handle_view_update(mod, :exclude_if)
   end
 
+  def __set_naming_strategy__(mod, strategy) do
+    current_view(mod)
+    |> Mine.View.set_naming_strategy(strategy)
+    |> handle_view_update(mod, :naming_strategy)
+  end
+
   defp handle_view_update(res, mod, key) do
     msg =
       case res do
@@ -324,6 +330,13 @@ defmodule Mine do
           Valid shortcuts include: :is_nil, :is_blank
 
           Note: anonymous functions and remote macros are not supportable as of Elixir 1.9
+          """
+
+        {:error, {:bad_naming_strategy, strategy, valid}} ->
+          """
+          Unknown naming strategy: #{strategy}
+
+          Existing naming strategies: #{inspect(valid)}
           """
 
         {:ok, view} ->
@@ -407,6 +420,7 @@ defmodule Mine do
     |> pop_attributes()
     |> handle_default_view_attr!(mod, view_name)
     |> handle_exclude_if_attr!(mod)
+    |> handle_naming_strategy!(mod)
   end
 
   defp handle_default_view_attr!(attributes, mod, view_name) do
@@ -432,7 +446,15 @@ defmodule Mine do
     next
   end
 
-  @config_attributes [:default_view, :exclude_if]
+  defp handle_naming_strategy!(attributes, mod) do
+    {strategy, next} = Keyword.pop(attributes, :naming_strategy)
+
+    if strategy, do: __set_naming_strategy__(mod, strategy)
+
+    next
+  end
+
+  @config_attributes [:default_view, :exclude_if, :naming_strategy]
   defp pop_attributes(mod) do
     for attribute <- @config_attributes, into: [] do
       {attribute, Module.delete_attribute(mod, attribute)}
