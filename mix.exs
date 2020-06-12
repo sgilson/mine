@@ -32,7 +32,8 @@ defmodule Mine.MixProject do
       {:ex_doc, "~> 0.21.2", only: :dev},
       {:git_hooks, "~> 0.4.1", only: [:test, :dev], runtime: false},
       {:benchee, "~> 1.0.1", only: :bench},
-      {:benchee_markdown, "~> 0.2.3", only: :bench}
+      {:benchee_markdown, "~> 0.2.3", only: :bench},
+      {:recase, "~> 0.6"}
     ]
   end
 

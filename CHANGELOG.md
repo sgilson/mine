@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.3.2
+
+### Improvement
+
+- Addition of `@naming_strategy` annotation. Place the annotation
+  above a view definition and the generated keys will be formatted
+  with that strategy. Available naming strategies are: `:camel`, `:constant`,  
+  `:dot`, `:kebab`, `:pascal`, and `:path`.  
+  
+  Refer to [Recase](https://hexdocs.pm/recase) for details.
+
 ## v0.3.1
 
 ### Improvements
