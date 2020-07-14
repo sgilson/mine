@@ -1,5 +1,23 @@
 # Changelog
 
+## v0.3.3
+
+### Improvement
+
+- Adding support for `defview/0`. With the addition of `@naming_strategy`, some
+  views can be effective without adding any fields to the body of `defview`. 
+  Previously, we were forced to something like:
+  ```elixir
+  defview do
+  end
+  ```
+  Not too much of an inconvenience, but not fun to look at. Now, the following 
+  declarations are supported.
+  ```elixir
+  defview()
+  defview(:view_name)
+  ```
+
 ## v0.3.2
 
 ### Improvement

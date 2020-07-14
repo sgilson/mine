@@ -6,7 +6,7 @@ defmodule Mine do
       |> resolve_only()
 
     quote do
-      import Mine, only: [defview: 1, defview: 2, default_view: 1]
+      import Mine, only: [defview: 0, defview: 1, defview: 2, default_view: 1]
 
       @mine true
       @mine_default_view :default
@@ -61,7 +61,7 @@ defmodule Mine do
     functions can be referenced using atoms: `:is_nil` (entries whose values are nil will be
     filtered out), and `:is_blank` (entries whose values are nil or an empty string are removed).
   """
-  defmacro defview(name \\ :default, do: body) do
+  defmacro defview(name, do: body) do
     prelude =
       quote bind_quoted: [name: name],
             unquote: true do
@@ -82,9 +82,7 @@ defmodule Mine do
       end
 
     postlude =
-      quote bind_quoted: [
-              name: name
-            ] do
+      quote bind_quoted: [name: name] do
         {composed_view, view} =
           Module.get_attribute(__MODULE__, :mine_current_view)
           |> Mine.View.compose()
@@ -117,6 +115,21 @@ defmodule Mine do
       unquote(prelude)
       unquote(postlude)
     end
+  end
+
+  @doc false
+  defmacro defview() do
+    quote do: Mine.defview(:default, do: :ok)
+  end
+
+  @doc false
+  defmacro defview(do: body) do
+    quote do: Mine.defview(:default, do: unquote(body))
+  end
+
+  @doc false
+  defmacro defview(name) do
+    quote do: Mine.defview(unquote(name), do: :ok)
   end
 
   @doc false

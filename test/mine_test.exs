@@ -522,8 +522,7 @@ defmodule MineTest do
       defstruct [:field]
 
       @default_view :first
-      defview :first do
-      end
+      defview(:first)
     end
 
     test "explicit value works" do
@@ -557,12 +556,10 @@ defmodule MineTest do
 
         @default_view true
         @exclude_if :is_nil
-        defview :is_nil_atom do
-        end
+        defview(:is_nil_atom)
 
         @exclude_if :is_blank
-        defview :is_blank_atom do
-        end
+        defview(:is_blank_atom)
       end
     )
 
@@ -589,8 +586,7 @@ defmodule MineTest do
           defstruct [:trash]
 
           @exclude_if 1
-          defview do
-          end
+          defview()
         end
       )
     end
@@ -604,8 +600,7 @@ defmodule MineTest do
           defstruct [:trash]
 
           @exclude_if &is_nil/1
-          defview do
-          end
+          defview()
         end
       )
     end
@@ -625,8 +620,7 @@ defmodule MineTest do
         field(:key_one, "key.one")
       end
 
-      defview :untouched do
-      end
+      defview(:untouched)
     end
 
     test "unmapped keys are camelized" do
@@ -652,8 +646,7 @@ defmodule MineTest do
           defstruct [:key]
 
           @naming_strategy :bad_val
-          defview do
-          end
+          defview()
         end
       )
     end
