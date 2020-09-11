@@ -1,4 +1,10 @@
 defmodule Mine do
+  @type key :: atom | String.t()
+  @spec valid_key?(any) :: boolean
+  def valid_key?(val) when is_atom(val) or is_binary(val), do: true
+
+  def valid_key?(_), do: false
+
   defmacro __using__(opts) do
     only =
       opts
@@ -10,13 +16,14 @@ defmodule Mine do
 
       @mine true
       @mine_default_view :default
-      @mine_views %{}
       @mine_current_name nil
       @mine_only unquote(only)
 
       Module.register_attribute(__MODULE__, :mine_name, accumulate: false)
       Module.register_attribute(__MODULE__, :mine_names, accumulate: true)
 
+      # @on_definition {Mine, :on_def}
+      @before_compile Mine
       @after_compile Mine
 
       def __mine__(:default_view), do: @mine_default_view
@@ -166,7 +173,7 @@ defmodule Mine do
 
       defmodule MyModule do
         use Mine
-        struct [:my_field, :foo, :to_upper]
+        defstruct [:my_field, :foo, :to_upper]
 
         defview do
           field :my_field, as: "myField"
@@ -201,7 +208,7 @@ defmodule Mine do
 
       defmodule MyModule do
         use Mine
-        struct [:field]
+        defstruct [:field]
 
         defview do
           append "@class", "Some.Java.Class"
@@ -225,7 +232,7 @@ defmodule Mine do
 
       defmodule MyModule do
         use Mine
-        struct [:public, :private]
+        defstruct [:public, :private]
 
         defview do
           ignore :private
@@ -371,6 +378,17 @@ defmodule Mine do
     Module.put_attribute(mod, :mine_current_view, view)
   end
 
+  defmacro __before_compile__(%{module: mod}) do
+    if Module.get_attribute(mod, :mine_names) == [] do
+      quote do
+        # overridable definitions have been made concrete
+        # add this again to avoid warnings
+        defoverridable __mine__: 1
+        defview()
+      end
+    end
+  end
+
   def __after_compile__(%{module: mod}, _) do
     default = mod.__mine__(:default_view)
     names = mod.__mine__(:names)
@@ -379,12 +397,6 @@ defmodule Mine do
 
     :ok
   end
-
-  @type key :: atom | String.t()
-  @spec valid_key?(any) :: boolean
-  def valid_key?(val) when is_atom(val) or is_binary(val), do: true
-
-  def valid_key?(_), do: false
 
   # Private
 

@@ -163,6 +163,22 @@ defmodule MineTest do
     end
   end
 
+  describe "default user" do
+    defmodule DefaultUser do
+      use Mine
+
+      defstruct [:name]
+    end
+
+    test "default view was generated" do
+      user = %DefaultUser{name: "Joe"}
+      expected = %{"name" => "Joe"}
+
+      assert expected == DefaultUser.to_view(user)
+      assert user = DefaultUser.from_view(expected)
+    end
+  end
+
   test "using macros outside defview/1" do
     assert_compiler_raise(
       ~r/(undefined function field)/i,
