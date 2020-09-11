@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.3.4
+
+### Bugfix
+
+- If `defview()` was not invoked, modules would fail to compile with a non-obvious
+  error message. Inserting a default view if nothing else is defined.
+
 ## v0.3.3
 
 ### Improvement
