@@ -225,7 +225,7 @@ Mine can be installed by adding `mine` to your list of dependencies in `mix.exs`
 ```elixir
 def deps do
   [
-    {:mine, "~> 0.3.3"} # check Hex for the most recent version
+    {:mine, "~> 0.3.4"} # check Hex for the most recent version
   ]
 end
 ```
