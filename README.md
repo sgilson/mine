@@ -57,7 +57,7 @@ the following methods will be found on your module.
 
 The first argument for both of these functions is the data to translate. The second is the name of the view to use 
 for this translation. A module using Mine can have multiple views to capture the formatting requirements of 
-different domains. In this case, `:default` was not needed, since the second parameter defaults to this value 
+different domains. In this case, `:default` was not needed since the second parameter defaults to this value 
 unless configured otherwise.
 
 These functions should ideally be used between your serialization layer and business logic. For example,
@@ -134,7 +134,7 @@ def to_view(%User{}, :third_party_api)
 # plus corresponding from_view functions
 ```
 
-With this layout, you can let pattern matching determining which view to use.
+With this layout, you can let pattern matching determine which view to use.
 
 ## Key Naming Strategies
 
